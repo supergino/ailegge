@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Inizializzazione dell'SDK con la chiave salvata nell'ambiente
+// Inizializzazione dell'SDK con la chiave salvata nell'ambiente andrea 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(req) {

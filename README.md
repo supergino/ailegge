@@ -4,6 +4,8 @@ IusMente è un'applicazione web avanzata basata su Next.js, concepita specificam
 
 Il progetto nasce per colmare il divario tra la fredda consultazione dei codici normativi e la necessità di un apprendimento interattivo, stimolante e personalizzato.
 
+Buon uso !
+
 ---
 
 ## 🌟 Funzionalità Principali ed Esperienza Utente
