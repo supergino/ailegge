@@ -11,6 +11,18 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 
+// Tavily: ricerca web in tempo reale usata come RAG per ancorare le risposte
+// a fonti normative italiane aggiornate (Normattiva, Gazzetta Ufficiale, Italgiure).
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY
+const TAVILY_ENDPOINT = 'https://api.tavily.com/search'
+const TAVILY_DOMINI_IT = [
+  'normattiva.it',
+  'gazzettaufficiale.it',
+  'italgiure.giustizia.it',
+]
+const TAVILY_MAX_RESULTS = 4
+const TAVILY_TIMEOUT_MS = 8000
+
 const SOURCE_RULES = `
 FONTI — OBBLIGATORIO per ogni risposta:
 - Identifica e elenca TUTTE le fonti giuridiche effettivamente utilizzate per formulare la risposta.
@@ -85,7 +97,29 @@ Comportamento accademico:
       ? 'Ambito giurisdizionale: limita l\'analisi esclusivamente al diritto interno italiano (Codice Civile, Codice Penale, Costituzione e leggi speciali).'
       : 'Ambito giurisdizionale: integra l\'analisi con il diritto dell\'Unione Europea, i trattati internazionali e la giurisprudenza sovranazionale (CGUE, CEDU).'
 
-    const systemInstruction = `${roleInstruction}\n\n${geoInstruction}\n\n${SOURCE_RULES}`
+    // RAG: ricerca normativa italiana su Tavily (solo se soloItalia e messaggio significativo)
+    let contestoRAG = ''
+    let tavilyMeta = { eseguita: false, motivo: 'non_attivo', numRisultati: 0 }
+    if (soloItalia && message.trim().length >= 20 && TAVILY_API_KEY) {
+      const ricerca = await ricercaTavily(message)
+      tavilyMeta = {
+        eseguita: ricerca.eseguita,
+        motivo: ricerca.motivo,
+        numRisultati: ricerca.risultati.length,
+      }
+      if (ricerca.risultati.length > 0) {
+        contestoRAG = contestoTavilyPerPrompt(ricerca.risultati)
+        console.log(`[IusMente/Tavily] RAG attivo, ${ricerca.risultati.length} risultati iniettati nel prompt`)
+      }
+    } else if (soloItalia && message.trim().length < 20) {
+      tavilyMeta = { eseguita: false, motivo: 'messaggio_troppo_corto', numRisultati: 0 }
+    } else if (!soloItalia) {
+      tavilyMeta = { eseguita: false, motivo: 'ambito_ue', numRisultati: 0 }
+    } else {
+      tavilyMeta = { eseguita: false, motivo: 'api_key_mancante', numRisultati: 0 }
+    }
+
+    const systemInstruction = `${roleInstruction}\n\n${geoInstruction}\n\n${SOURCE_RULES}${contestoRAG}`
 
     // Schema condiviso per le risposte Gemini (generazione e rigenerazione)
     const responseSchema = {
@@ -229,6 +263,7 @@ Comportamento accademico:
         confidenza: validazione.confidenza,
         skipped: validazione.skipped,
       },
+      tavily: tavilyMeta,
     })
 
   } catch (error) {
@@ -297,6 +332,69 @@ function normalizzaFonti(fonti) {
       return null
     })
     .filter(Boolean)
+}
+
+// RAG: ricerca web su Tavily limitata ai domini .it normativi.
+// Restituisce sempre { eseguita, motivo, risultati } — mai un throw, in modo che
+// un'indisponibilità di Tavily degradi silenziosamente il flusso anziché rompere la chat.
+async function ricercaTavily(query) {
+  if (!TAVILY_API_KEY) {
+    return { eseguita: false, motivo: 'api_key_mancante', risultati: [] }
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), TAVILY_TIMEOUT_MS)
+
+  try {
+    const res = await fetch(TAVILY_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TAVILY_API_KEY}`,
+      },
+      body: JSON.stringify({
+        query,
+        max_results: TAVILY_MAX_RESULTS,
+        search_depth: 'basic', // 1 credito per query; 'advanced' ne costa 2
+        topic: 'general',
+        include_domains: TAVILY_DOMINI_IT,
+      }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+
+    if (!res.ok) {
+      const errBody = await res.text()
+      throw new Error(`Tavily ${res.status}: ${errBody.slice(0, 200)}`)
+    }
+    const data = await res.json()
+    const risultati = Array.isArray(data?.results) ? data.results : []
+    return { eseguita: true, motivo: null, risultati }
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err?.name === 'AbortError') {
+      console.warn('[IusMente/Tavily] timeout dopo 8s, procedo senza RAG')
+      return { eseguita: false, motivo: 'timeout', risultati: [] }
+    }
+    console.warn('[IusMente/Tavily] errore, procedo senza RAG:', err.message)
+    return { eseguita: false, motivo: 'errore', risultati: [] }
+  }
+}
+
+// Formatta i risultati Tavily in un blocco di testo da appendere al systemInstruction.
+// Limita la dimensione di ogni estratto per non esplodere il prompt di Gemini.
+function contestoTavilyPerPrompt(risultati) {
+  if (!Array.isArray(risultati) || risultati.length === 0) return ''
+  const blocchi = risultati.map((r, i) => {
+    const titolo = (r?.title || 'Senza titolo').slice(0, 200)
+    const contenuto = (r?.content || '').slice(0, 600)
+    const url = r?.url || ''
+    return `[${i + 1}] ${titolo}\nURL: ${url}\nEstratto: ${contenuto}`
+  })
+  return `\n\nCONTESTO NORMATIVO RECUPERATO DA WEB (Tavily):
+Usa i seguenti estratti come FONTE PRIMARIA per articoli di legge, commi e riferimenti normativi italiani. Cita solo ciò che trovi confermato qui sotto o che è principio consolidato. Se il contesto non copre la domanda, segnalalo onestamente.
+
+${blocchi.join('\n\n')}`
 }
 
 // Validatore: Groq (Llama 3.3 70B) verifica la risposta di Gemini per ridurre allucinazioni.
