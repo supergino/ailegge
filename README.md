@@ -173,4 +173,4 @@ Estrae il testo da un file PDF o TXT (codificato in base64).
 
 ## Licenza
 
-Distribuito con licenza MIT. Vedi `LICENSE` per maggiori informazioni.
+Distribuito con licenza Apache 2.0. Vedi `LICENSE` per maggiori informazioni.
