@@ -1,4 +1,3 @@
-```text
 # Local env files
 .env
 .env.local
@@ -10,3 +9,13 @@
 node_modules/
 .next/
 out/
+
+# macOS metadata
+.DS_Store
+
+# Rich Text artifacts
+*.rtfd/
+Senza\ nome.rtfd/
+
+# Miscellaneous artifacts
+2026-06-22-145608-analizza-il-codice-ora-cerca-di-capire-errore-che.txt

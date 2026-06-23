@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import pkg from '../package.json'
 import {
   Clock,
   Copy,
@@ -17,7 +16,11 @@ import {
   Globe,
   Gavel,
   Info,
+  Paperclip,
+  FileText,
 } from 'lucide-react'
+
+const APP_VERSION = '1.0.0'
 
 export default function Home() {
   const [input, setInput] = useState('')
@@ -29,9 +32,14 @@ export default function Home() {
   const [cronologia, setCronologia] = useState([])
   const [cronologiaAperta, setCronologiaAperta] = useState(false)
   const [copiatoId, setCopiatoId] = useState(null)
+  const [documentContext, setDocumentContext] = useState('')
+  const [documentName, setDocumentName] = useState('')
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [currentSessionId, setCurrentSessionId] = useState(null)
 
   const chatEndRef = useRef(null)
   const inputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     const cronologiaSalvata = localStorage.getItem('iusmente_cronologia')
@@ -62,27 +70,91 @@ export default function Home() {
     const titoloTroncato = primoMessaggio.length > 40 ? primoMessaggio.substring(0, 40) + '…' : primoMessaggio
 
     const nuovaSessione = {
-      id: Date.now(),
+      id: currentSessionId || Date.now(),
       titolo: titoloTroncato,
       data: new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
       chat: nuoviMessaggi,
     }
 
-    const aggiornata = [nuovaSessione, ...cronologia.filter(s => s.chat !== nuoviMessaggi)]
+    const aggiornata = [nuovaSessione, ...cronologia.filter(s => s.id !== nuovaSessione.id)]
     setCronologia(aggiornata)
+    setCurrentSessionId(nuovaSessione.id)
     localStorage.setItem('iusmente_cronologia', JSON.stringify(aggiornata))
   }
 
   const caricaSessione = (sessione) => {
     setMessages(sessione.chat)
+    setCurrentSessionId(sessione.id)
     setCronologiaAperta(false)
+  }
+
+  const eliminaSessione = (id) => {
+    const aggiornata = cronologia.filter(s => s.id !== id)
+    setCronologia(aggiornata)
+    localStorage.setItem('iusmente_cronologia', JSON.stringify(aggiornata))
   }
 
   const nuovaChat = () => {
     setMessages([])
     setInput('')
     setCronologiaAperta(false)
+    setDocumentContext('')
+    setDocumentName('')
+    setCurrentSessionId(null)
     inputRef.current?.focus()
+  }
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (!['txt', 'pdf'].includes(ext)) {
+      alert('Formato non supportato. Carica file .txt o .pdf.')
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File troppo grande (max 10 MB).')
+      return
+    }
+
+    setUploadingFile(true)
+    try {
+      if (ext === 'txt') {
+        const text = await file.text()
+        setDocumentContext(text)
+        setDocumentName(file.name)
+      } else {
+        const arrayBuffer = await file.arrayBuffer()
+        const bytes = new Uint8Array(arrayBuffer)
+        let binary = ''
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i])
+        }
+        const base64 = btoa(binary)
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileContent: base64, fileName: file.name }),
+        })
+        const data = await res.json()
+        if (data.error) throw new Error(data.error)
+        setDocumentContext(data.text)
+        setDocumentName(data.fileName)
+      }
+    } catch (err) {
+      console.error('Errore caricamento file:', err)
+      alert('Errore durante la lettura del file. Riprova.')
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const rimuoviDocumento = () => {
+    setDocumentContext('')
+    setDocumentName('')
   }
 
   const handleInvia = async (e) => {
@@ -95,6 +167,7 @@ export default function Home() {
     setMessages(nuoviMessaggi)
     setLoading(true)
 
+    let data
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -103,12 +176,15 @@ export default function Home() {
           message: userMessage,
           soloItalia,
           modalitaTutor,
+          documentContext: documentContext || undefined,
+          documentName: documentName || undefined,
         }),
       })
 
-      const data = await res.json()
+      data = await res.json()
       if (data.error) throw new Error(data.error)
 
+      // Clear document after first message using it (context already passed)
       const messaggiAggiornati = [...nuoviMessaggi, {
         role: 'assistant',
         text: data.text,
@@ -118,7 +194,6 @@ export default function Home() {
       salvaInCronologia(messaggiAggiornati)
     } catch (err) {
       console.error(err)
-      // Usa il messaggio specifico del backend se presente, altrimenti fallback
       const messaggioErrore = data?.detail
         ? `${data.error}. ${data.detail}`
         : (data?.error || 'Si è verificato un errore. Riprova tra qualche istante.')
@@ -141,17 +216,34 @@ export default function Home() {
         <p className={`px-3 py-6 text-center text-sm ${muted}`}>Nessuna conversazione</p>
       ) : (
         cronologia.map(s => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => caricaSessione(s)}
-            className={`group w-full rounded-xl px-3 py-2.5 text-left transition-colors ${
-              isDarkMode ? 'hover:bg-white/8 active:bg-white/12' : 'hover:bg-black/[0.04] active:bg-black/[0.06]'
-            }`}
-          >
-            <p className="truncate text-[13px] font-medium leading-snug">{s.titolo}</p>
-            <p className={`mt-0.5 text-[11px] ${muted}`}>{s.data}</p>
-          </button>
+          <div key={s.id} className="group relative">
+            <button
+              type="button"
+              onClick={() => caricaSessione(s)}
+              className={`w-full rounded-xl px-3 py-2.5 pr-9 text-left transition-colors ${
+                isDarkMode ? 'hover:bg-white/8 active:bg-white/12' : 'hover:bg-black/[0.04] active:bg-black/[0.06]'
+              }`}
+            >
+              <p className="truncate text-[13px] font-medium leading-snug">{s.titolo}</p>
+              <p className={`mt-0.5 text-[11px] ${muted}`}>{s.data}</p>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                eliminaSessione(s.id)
+              }}
+              aria-label="Elimina dalla cronologia"
+              title="Elimina dalla cronologia"
+              className={`absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-red-500 opacity-70 transition-all hover:opacity-100 ${
+                isDarkMode
+                  ? 'hover:bg-red-500/15 active:bg-red-500/25'
+                  : 'hover:bg-red-500/10 active:bg-red-500/20'
+              }`}
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
+          </div>
         ))
       )}
     </div>
@@ -179,7 +271,7 @@ export default function Home() {
   )
 
   return (
-    <div className={`flex h-[100dvh] ${bg}`}>
+    <div className={`flex h-[100dvh] overflow-hidden ${bg}`}>
 
       {/* Sidebar desktop — sottile, stile Apple */}
       <aside className={`hidden md:flex md:w-[220px] md:shrink-0 md:flex-col border-r ${border} ${isDarkMode ? 'bg-[#1d1d1f]' : 'bg-[#f5f5f7]'}`}>
@@ -320,7 +412,10 @@ export default function Home() {
                       : muted
                   }`}
                 >
-                  Solo leggi italiane
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-base leading-none" role="img" aria-label="Italia">🇮🇹</span>
+                    Solo leggi italiane
+                  </span>
                   <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${soloItalia ? 'text-white/80' : muted}`}>
                     No UE, no CEDU
                   </span>
@@ -334,7 +429,10 @@ export default function Home() {
                       : muted
                   }`}
                 >
-                  Includi UE e internazionale
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-base leading-none" role="img" aria-label="Unione Europea">🇪🇺</span>
+                    Includi UE e internazionale
+                  </span>
                   <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${!soloItalia ? 'text-white/80' : muted}`}>
                     Trattati, CGUE, CEDU
                   </span>
@@ -505,29 +603,72 @@ export default function Home() {
 
         {/* Input — pill stile iMessage */}
         <footer className={`safe-bottom shrink-0 border-t px-3 py-2.5 sm:px-5 sm:py-4 ${border} ${surface} glass`}>
-          <form onSubmit={handleInvia} className="mx-auto flex max-w-2xl items-end gap-2">
-            <div className={`flex flex-1 items-center rounded-[22px] border px-4 py-2 ${
-              isDarkMode ? 'border-white/10 bg-[#1d1d1f]' : 'border-black/[0.08] bg-white'
-            }`}>
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                className={`w-full bg-transparent text-[15px] outline-none placeholder:opacity-50 ${
-                  isDarkMode ? 'placeholder:text-[#86868b]' : 'placeholder:text-[#6e6e73]'
-                }`}
-                placeholder="Scrivi la tua domanda…"
-                aria-label="Messaggio"
-              />
+          <form onSubmit={handleInvia} className="mx-auto flex max-w-2xl flex-col gap-2">
+            {documentName && (
+              <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${border} ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-white'}`}>
+                <FileText className="h-4 w-4 shrink-0 text-[#0071e3]" strokeWidth={1.75} />
+                <span className="truncate text-[13px] font-medium">{documentName}</span>
+                <button
+                  type="button"
+                  onClick={rimuoviDocumento}
+                  className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full opacity-60 transition-opacity hover:opacity-100"
+                  aria-label="Rimuovi file"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2} />
+                </button>
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <div className={`flex flex-1 items-center rounded-[22px] border px-3 py-2 ${
+                isDarkMode ? 'border-white/10 bg-[#1d1d1f]' : 'border-black/[0.08] bg-white'
+              }`}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.pdf"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || uploadingFile}
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${
+                    isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
+                  } disabled:opacity-30`}
+                  aria-label="Allega file"
+                  title="Allega file .txt o .pdf"
+                >
+                  {uploadingFile ? (
+                    <span className="flex gap-0.5">
+                      {[0, 1, 2].map(n => (
+                        <span key={n} className="h-1 w-1 rounded-full bg-current animate-pulse" style={{ animationDelay: `${n * 150}ms` }} />
+                      ))}
+                    </span>
+                  ) : (
+                    <Paperclip className="h-4 w-4" strokeWidth={1.75} />
+                  )}
+                </button>
+                <input
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  className={`w-full bg-transparent text-[15px] outline-none placeholder:opacity-50 ${
+                    isDarkMode ? 'placeholder:text-[#86868b]' : 'placeholder:text-[#6e6e73]'
+                  }`}
+                  placeholder={documentName ? 'Poni una domanda sul documento…' : 'Scrivi la tua domanda…'}
+                  aria-label="Messaggio"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!input.trim() || loading || uploadingFile}
+                className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#0071e3] text-white transition-all hover:bg-[#0077ed] disabled:opacity-30 disabled:hover:bg-[#0071e3]"
+                aria-label="Invia messaggio"
+              >
+                <Send className="h-[17px] w-[17px]" strokeWidth={2} />
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#0071e3] text-white transition-all hover:bg-[#0077ed] disabled:opacity-30 disabled:hover:bg-[#0071e3]"
-              aria-label="Invia messaggio"
-            >
-              <Send className="h-[17px] w-[17px]" strokeWidth={2} />
-            </button>
           </form>
           {/* Credit */}
           <div className={`mx-auto mt-2 flex max-w-2xl items-center justify-center gap-1.5 text-[11px] ${muted}`}>
@@ -538,7 +679,7 @@ export default function Home() {
             </span>
             <span className={`${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
             <span className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] ${isDarkMode ? 'bg-white/5' : 'bg-black/[0.04]'}`}>
-              v{pkg.version}
+              v{APP_VERSION}
             </span>
           </div>
         </footer>

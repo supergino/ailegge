@@ -48,7 +48,7 @@ STRUTTURA di ogni fonte (oggetto JSON):
 
 export async function POST(req) {
   try {
-    const { message, soloItalia, modalitaTutor } = await req.json();
+    const { message, soloItalia, modalitaTutor, documentContext, documentName } = await req.json();
 
     // Validazione base dell'input
     if (!message) {
@@ -119,7 +119,11 @@ Comportamento accademico:
       tavilyMeta = { eseguita: false, motivo: 'api_key_mancante', numRisultati: 0 }
     }
 
-    const systemInstruction = `${roleInstruction}\n\n${geoInstruction}\n\n${SOURCE_RULES}${contestoRAG}`
+    const documentInstruction = documentContext && documentName
+      ? `\n\nDOCUMENTO ALLEGATO ("${documentName}"):\nL'utente ha allegato il seguente documento. Usalo come contesto primario per rispondere alle domande che lo riguardano. Se la domanda non è pertinente al documento, rispondi comunque con le tue conoscenze giuridiche.\n\n--- INIZIO DOCUMENTO ---\n${documentContext}\n--- FINE DOCUMENTO ---`
+      : ''
+
+    const systemInstruction = `${roleInstruction}\n\n${geoInstruction}${documentInstruction}\n\n${SOURCE_RULES}${contestoRAG}`
 
     // Schema condiviso per le risposte Gemini (generazione e rigenerazione)
     const responseSchema = {
@@ -264,6 +268,8 @@ Comportamento accademico:
         skipped: validazione.skipped,
       },
       tavily: tavilyMeta,
+      documentContext: documentContext || null,
+      documentName: documentName || null,
     })
 
   } catch (error) {

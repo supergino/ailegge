@@ -1,22 +1,66 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guida per assistenti AI quando lavorano su questo repository.
 
-## 🚀 Development Environment Setup
-The primary environment for this project is a modern JavaScript/TypeScript stack, likely based on Next.js given the README context. All commands related to building, linting, and testing should be executed within this environment.
+## Stack
 
-### Common Commands
-For standard development tasks, use these conventions:
-- **Build:** `npm run build` (or `yarn build`) for compiling frontend assets and preparing the application for deployment.
-- **Linting:** `npm run lint` to check code style and potential issues in the codebase. Always apply fixes suggested by the linter.
-- **Run Tests:** To execute all unit/integration tests, use `npm run test`. For a single specific test file, use `npm run test -- <filename>` or the equivalent command provided by your testing framework (e.g., Jest).
+- **Framework:** Next.js 16 (App Router, Turbopack)
+- **Linguaggio:** JavaScript (no TypeScript)
+- **UI:** React 18, Tailwind CSS 3, Lucide React
+- **AI:** Google Gemini SDK (`@google/genai`), Groq Cloud API, Tavily Search API
+- **PDF:** `pdf-parse`
 
-### High-Level Architecture Overview
-The application IusMente is structured around a core principle of **Dual Persona** and **Jurisdictional Filtering**. When designing new features or refactoring, consider these architectural boundaries:
+## Comandi
 
-1.  **Persona Layer:** Any feature that interacts with the user experience or response generation must clearly distinguish between the 'Tutor Didattico' (empathetic/supportive) mode and the 'Rigore d'Esame' (formal/academic) mode. Changes here impact the core UX/interaction logic.
-2.  **Jurisdiction Engine:** All content processing and factual grounding must be routed through a dedicated filtering mechanism that strictly enforces the scope (e.g., Italian law vs. EU Law). This engine is critical for data integrity. Never implement logic directly in response generation; always route through this filter.
-3.  **Presentation Layer:** The UI components are responsible for displaying the metadata (models used and sources consulted) transparently, adhering to the principle of complete transparency outlined in the project's philosophy.
+```bash
+npm run dev      # Avvia in sviluppo (localhost:3000)
+npm run build    # Build di produzione
+npm run start    # Avvia il server di produzione
+```
 
-## 📜 Project Philosophy Summary
-Remember: The goal is to create an interactive learning tool that balances empathy with rigorous academic formality. Every design decision must serve this duality.
+Non ci sono script di linting o test configurati al momento.
+
+## Struttura
+
+```
+app/
+├── layout.js           # Root layout (metadata, viewport, font)
+├── page.js             # Client component — chat UI completa
+├── globals.css         # Stili globali (scrollbar, glass, safe-area)
+├── api/
+│   ├── chat/route.js   # POST /api/chat — pipeline AI principale
+│   └── upload/route.js # POST /api/upload — estrazione testo PDF/TXT
+└── info/page.js        # Pagina documentazione statica
+```
+
+## Architettura
+
+Il sistema si basa su una **pipeline a 3 stadi**:
+
+1. **Generazione** — Gemini 2.5 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
+2. **Validazione** — Llama 3.3 70B (Groq) verifica accuratezza giuridica e allucinazioni
+3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto
+
+Opzionalmente, una ricerca RAG via Tavily su domini normativi italiani (Normattiva, Gazzetta Ufficiale, Italgiure) arricchisce il contesto prima della generazione.
+
+### Variabili d'ambiente necessarie
+
+| Variabile | Servizio | Ottenibile da |
+|---|---|---|
+| `GEMINI_API_KEY` | Google Gemini | ai.google.dev |
+| `GROQ_API_KEY` | Groq (Llama validatore) | console.groq.com |
+| `TAVILY_API_KEY` | Tavily (RAG) | tavily.com |
+
+## Convenzioni di codice
+
+- **No TypeScript** — tutto in `.js`
+- **Stile:** Tailwind utility-first, pattern Apple (glassmorphism, rounded-2xl, SF font)
+- **API routes:** restituiscono `NextResponse.json()` con errori strutturati
+- **Cronologia:** salvata in `localStorage` chiave `iusmente_cronologia`
+- **Export functions** nei file route (non default export per POST)
+
+## Cose da non fare
+
+- Non installare TypeScript o aggiungere `tsconfig.json`
+- Non creare directory `components/`, `lib/`, `utils/` a meno che non servano realmente
+- Non aggiungere dipendenze inutili — il progetto è volutamente minimal

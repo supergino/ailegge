@@ -14,7 +14,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="it">
-      <body className="overflow-hidden">{children}</body>
+      <body>{children}</body>
     </html>
   )
 }
