@@ -1,6 +1,6 @@
 # IusMente
 
-Assistente virtuale intelligente per studenti di giurisprudenza, basato su una pipeline a due modelli AI con validazione incrociata e ricerca RAG su fonti normative italiane.
+Assistente virtuale intelligente per studenti di giurisprudenza, basato su una pipeline a tre modelli AI con validazione incrociata, fallback automatico e ricerca RAG su fonti normative italiane.
 
 ---
 
@@ -8,7 +8,8 @@ Assistente virtuale intelligente per studenti di giurisprudenza, basato su una p
 
 - **Doppia modalità di risposta**: Assistenza studio (Tutor — empatico, spiegazioni, quiz) o Ambito ufficiale legislativo (Professore — formale, rigoroso, come in commissione d'esame)
 - **Filtro giurisdizionale**: scegli se limitarti al solo diritto italiano o includere UE e internazionale (TFUE, CEDU, CGUE)
-- **Pipeline anti-allucinazione**: Gemini 2.5 Flash-Lite genera la risposta, Llama 3.3 70B (Groq) la valida, in caso di criticità viene rigenerata automaticamente
+- **Pipeline anti-allucinazione a 3 livelli**: Gemini 2.5 Flash-Lite genera la risposta, Llama 3.3 70B (Groq) la valida, in caso di criticità viene rigenerata automaticamente
+- **Fallback automatico su sovraccarico**: se Gemini è saturo passa a Groq, se anche Groq è saturo passa a OpenRouter come ultima spiaggia
 - **Ricerca RAG in tempo reale**: Tavily interroga Normattiva, Gazzetta Ufficiale e Italgiure per ancorare le risposte a fonti aggiornate
 - **Upload documenti**: allega file PDF o TXT (max 10 MB) per analizzarli con l'assistente
 - **Design nativo Apple**: interfaccia in vetro smerigliato, supporto safe-area per dispositivi iOS, tema chiaro/scuro
@@ -32,12 +33,37 @@ Domanda utente
 ┌─────────────────────┐
 │  Gemini 2.5         │  ← Genera risposta JSON strutturata
 │  Flash-Lite         │     { text, fonti[] }
+│  (tentativo n. 1)   │
 └─────────┬───────────┘
           │
-          ▼
+    ┌─────┴──────┐
+    ▼            ▼
+  Successo    Quota esaurita
+    │            │
+    │            ▼
+    │    ┌─────────────────┐
+    │    │  Llama 3.3 70B  │  ← Fallback: genera risposta
+    │    │  via Groq       │     stesso formato JSON
+    │    │  (tentativo n.2)│
+    │    └────────┬────────┘
+    │        ┌────┴──────┐
+    │        ▼           ▼
+    │    Successo    Quota esaurita
+    │        │           │
+    │        │           ▼
+    │        │    ┌─────────────────┐
+    │        │    │  Modello free   │  ← Fallback estremo:
+    │        │    │  via OpenRouter │     via OpenRouter
+    │        │    │  (tentativo n.3)│
+    │        │    └────────┬────────┘
+    │        │            ▼
+    │        │        Successo / errore
+    │        │
+    └────┬───┘
+         ▼
 ┌─────────────────────┐
 │  Llama 3.3 70B      │  ← Valuta accuratezza giuridica
-│  (Groq)             │     { valido, problemi[] }
+│  via Groq            │     { valido, problemi[] }
 └─────────┬───────────┘
           │
     ┌─────┴─────┐
@@ -46,13 +72,15 @@ Domanda utente
     │           │
     │           ▼
     │    ┌─────────────────┐
-    │    │  Gemini          │  ← Rigenera con le criticità
-    │    │  (rigenerazione) │     come contesto aggiuntivo
-    │    └─────────┬───────┘
+    │    │  Gemini / Groq /│  ← Rigenerazione con lo stesso
+    │    │  OpenRouter     │     modello che ha generato
+    │    │  (rigenerazione)│     le criticità come contesto
+    │    └────────┬───────┘
     │              │
     └──────┬───────┘
            ▼
     Risposta finale + fonti
+    + indicatore modello usato
 ```
 
 ---
@@ -64,7 +92,9 @@ Domanda utente
 | Framework | Next.js 16 (App Router, Turbopack) |
 | Linguaggio | JavaScript (no TypeScript) |
 | UI | React 18, Tailwind CSS 3, Lucide React |
-| AI generativa | Google Gemini 2.5 Flash-Lite (`@google/genai`) |
+| AI generativa (primario) | Google Gemini 2.5 Flash-Lite (`@google/genai`) |
+| AI generativa (fallback) | Llama 3.3 70B (Groq Cloud) |
+| AI generativa (fallback estremo) | OpenRouter (modello `:free` configurabile) |
 | AI validatore | Llama 3.3 70B (Groq Cloud) |
 | Ricerca RAG | Tavily Search API |
 | Estrazione PDF | `pdf-parse` |
@@ -96,11 +126,12 @@ cp .env.example .env.local
 
 | Variabile | Obbligatoria | Servizio | Dove ottenerla |
 |---|---|---|---|
-| `GEMINI_API_KEY` | ✅ | Google Gemini | [ai.google.dev](https://ai.google.dev) |
-| `GROQ_API_KEY` | ❌* | Groq (Llama validatore) | [console.groq.com](https://console.groq.com) |
+| `GEMINI_API_KEY` | ✅ | Google Gemini (generatore primario) | [ai.google.dev](https://ai.google.dev) |
+| `GROQ_API_KEY` | ❌* | Groq (validatore + fallback generazione) | [console.groq.com](https://console.groq.com) |
+| `OPENROUTER_API_KEY` | ❌* | OpenRouter (fallback estremo) | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | `TAVILY_API_KEY` | ❌* | Tavily (RAG) | [tavily.com](https://tavily.com) |
 
-\* *GROQ_API_KEY e TAVILY_API_KEY sono opzionali: senza di esse il sistema funziona comunque, ma saltano rispettivamente la validazione e la ricerca RAG.*
+\* *GROQ_API_KEY, OPENROUTER_API_KEY e TAVILY_API_KEY sono opzionali: senza di esse il sistema funziona comunque, ma saltano rispettivamente la validazione/fallback, il fallback estremo e la ricerca RAG.*
 
 ### Avvio
 
@@ -140,7 +171,8 @@ Genera una risposta giuridica.
   "modelli": {
     "generatore": "Gemini 2.5 Flash-Lite",
     "validatore": "Groq llama-3.3-70b-versatile",
-    "rigenerato": false
+    "rigenerato": false,
+    "tentativiGenerazione": 1
   },
   "validazione": {
     "eseguita": true,
@@ -156,6 +188,11 @@ Genera una risposta giuridica.
 }
 ```
 
+Il campo `modelli.generatore` cambia in base al modello effettivamente usato:
+- `"Gemini 2.5 Flash-Lite"` — generatore primario
+- `"Groq llama-3.3-70b-versatile (fallback quota Gemini)"` — Gemini esaurito
+- `"OpenRouter google/gemma-3-27b-it:free (fallback estremo)"` — anche Groq esaurito
+
 ### `POST /api/upload`
 
 Estrae il testo da un file PDF o TXT (codificato in base64).
@@ -166,7 +203,7 @@ Estrae il testo da un file PDF o TXT (codificato in base64).
 
 - La cronologia è salvata esclusivamente nel **localStorage del browser** — nessun dato lascia il dispositivo
 - I documenti caricati vengono elaborati in tempo reale e **non memorizzati** sul server
-- I messaggi vengono processati da Google AI, Groq Cloud e Tavily secondo i termini di servizio di ciascun fornitore
+- I messaggi vengono processati da Google AI, Groq Cloud, OpenRouter e Tavily secondo i termini di servizio di ciascun fornitore
 - Nessun cookie di tracciamento o analytics
 
 ---

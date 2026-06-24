@@ -20,7 +20,7 @@ import {
   FileText,
 } from 'lucide-react'
 
-const APP_VERSION = '1.0.0'
+const APP_VERSION = '1.1.0'
 
 export default function Home() {
   const [input, setInput] = useState('')
@@ -36,6 +36,7 @@ export default function Home() {
   const [documentName, setDocumentName] = useState('')
   const [uploadingFile, setUploadingFile] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState(null)
+  const [cooldown, setCooldown] = useState(false)
 
   const chatEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -101,6 +102,7 @@ export default function Home() {
     setDocumentContext('')
     setDocumentName('')
     setCurrentSessionId(null)
+    setCooldown(false)
     inputRef.current?.focus()
   }
 
@@ -159,7 +161,7 @@ export default function Home() {
 
   const handleInvia = async (e) => {
     e.preventDefault()
-    if (!input.trim() || loading) return
+    if (!input.trim() || loading || cooldown) return
 
     const userMessage = input
     setInput('')
@@ -190,6 +192,7 @@ export default function Home() {
         role: 'assistant',
         text: data.text,
         fonti: data.fonti ?? [],
+        modelli: data.modelli,
       }]
       setMessages(messaggiAggiornati)
       salvaInCronologia(messaggiAggiornati)
@@ -201,6 +204,8 @@ export default function Home() {
       setMessages(prev => [...prev, { role: 'assistant', text: messaggioErrore }])
     } finally {
       setLoading(false)
+      setCooldown(true)
+      setTimeout(() => setCooldown(false), 3000)
     }
   }
 
@@ -562,6 +567,21 @@ export default function Home() {
                         </ul>
                       </div>
                     )}
+                    {m.role === 'assistant' && m.modelli?.generatore && (
+                      <div className={`mt-2 flex items-center gap-1.5 ${muted}`}>
+                        {m.modelli.generatore.includes('fallback') ? (
+                          <>
+                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+                            <span className="text-[10px] leading-tight">{m.modelli.generatore}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-[10px] leading-tight">Limiti OK · {m.modelli.generatore}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
                     {m.role === 'assistant' && (
                       <button
                         type="button"
@@ -663,7 +683,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                disabled={!input.trim() || loading || uploadingFile}
+                disabled={!input.trim() || loading || uploadingFile || cooldown}
                 className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#0071e3] text-white transition-all hover:bg-[#0077ed] disabled:opacity-30 disabled:hover:bg-[#0071e3]"
                 aria-label="Invia messaggio"
               >
