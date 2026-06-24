@@ -48,7 +48,7 @@ STRUTTURA di ogni fonte (oggetto JSON):
 
 export async function POST(req) {
   try {
-    const { message, soloItalia, modalitaTutor, documentContext, documentName } = await req.json();
+    const { message, messages: previousMessages, soloItalia, modalitaTutor, documentContext, documentName } = await req.json();
 
     // Validazione base dell'input
     if (!message) {
@@ -156,20 +156,28 @@ Comportamento accademico:
       required: ['text', 'fonti'],
     }
 
-    // Funzione che genera una risposta con Gemini (riusata per generazione e rigenerazione)
+    // Funzione che costruisce i contenuti multi-turn per Gemini e invoca il modello
     const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-    const callGemini = async (userText, additionalContext = '') => {
+    const buildContents = (prevMessages, currentMessage, additionalContext = '') => {
+      const history = (prevMessages || []).map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.text }],
+      }))
       const userPrompt = additionalContext
-        ? `${userText}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
-        : userText
+        ? `${currentMessage}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
+        : currentMessage
+      return [...history, { role: 'user', parts: [{ text: userPrompt }] }]
+    }
 
+    const callGemini = async (prevMessages, currentMessage, additionalContext = '') => {
+      const contents = buildContents(prevMessages, currentMessage, additionalContext)
       const MAX_RETRY = 2
       let lastErr
       for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
         try {
           const res = await ai.models.generateContent({
             model: 'gemini-2.5-flash-lite',
-            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            contents,
             config: {
               systemInstruction: systemInstruction,
               temperature: isTutor ? 0.75 : 0.15,
@@ -193,8 +201,8 @@ Comportamento accademico:
       throw lastErr
     }
 
-    // Generazione iniziale
-    const response = await callGemini(message)
+    // Generazione iniziale con cronologia
+    const response = await callGemini(previousMessages, message)
     const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? response.text ?? ''
 
     // Parsing iniziale
@@ -233,7 +241,7 @@ Comportamento accademico:
     if (!validazione.valido && validazione.problemi?.length > 0) {
       try {
         const contestoProblemi = validazione.problemi.map((p, i) => `${i + 1}. ${p}`).join('\n')
-        const response2 = await callGemini(message, contestoProblemi)
+        const response2 = await callGemini(previousMessages, message, contestoProblemi)
         const raw2 = response2.candidates?.[0]?.content?.parts?.[0]?.text ?? response2.text ?? ''
         try {
           const parsed2 = JSON.parse(raw2)

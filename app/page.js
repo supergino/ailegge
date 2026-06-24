@@ -174,6 +174,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
+          messages: messages,
           soloItalia,
           modalitaTutor,
           documentContext: documentContext || undefined,
