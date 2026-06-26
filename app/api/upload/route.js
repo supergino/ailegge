@@ -12,7 +12,12 @@ export async function POST(req) {
     const ext = fileName?.split('.').pop()?.toLowerCase()
 
     if (ext === 'txt') {
-      return NextResponse.json({ text: buffer.toString('utf-8'), fileName })
+      let text = buffer.toString('utf-8')
+      const maxChars = 50000
+      if (text.length > maxChars) {
+        text = text.slice(0, maxChars) + '\n\n[... Documento troncato per lunghezza eccessiva]'
+      }
+      return NextResponse.json({ text, fileName })
     }
 
     if (ext === 'pdf') {

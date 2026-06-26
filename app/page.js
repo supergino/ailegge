@@ -22,6 +22,36 @@ import {
 
 const APP_VERSION = '1.2.0'
 
+const DOMANDE_SUGGERITE = [
+  'Spiega la responsabilità extracontrattuale',
+  'Quiz su Diritto Privato',
+  'Differenza tra reato e contravvenzione',
+  'Cos\'è la capacità giuridica?',
+  'Spiega l\'art. 2043 c.c.',
+  'Differenza tra obbligazione e contratto',
+  'Cos\'è il dolo contrattuale?',
+  'Principio di legalità nel diritto penale',
+  'Spiega la prescrizione nel diritto civile',
+  'Differenza tra nullità e annullabilità',
+  'Cos\'è la successione legittima?',
+  'Elementi costitutivi del reato',
+  'Spiega la responsabilità precontrattuale',
+  'Cos\'è l\'usucapione?',
+  'Differenza tra diritto reale e diritto di credito',
+  'Spiega il principio di uguaglianza (art. 3 Cost.)',
+  'Cos\'è il giusto processo?',
+  'Differenza tra dolo e colpa',
+]
+
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 export default function Home() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([])
@@ -37,6 +67,11 @@ export default function Home() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState(null)
   const [cooldown, setCooldown] = useState(false)
+  const [suggerite, setSuggerite] = useState([])
+
+  useEffect(() => {
+    setSuggerite(shuffle(DOMANDE_SUGGERITE).slice(0, 3))
+  }, [])
 
   const chatEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -116,15 +151,18 @@ export default function Home() {
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File troppo grande (max 10 MB).')
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File troppo grande (max 5 MB).')
       return
     }
 
     setUploadingFile(true)
     try {
       if (ext === 'txt') {
-        const text = await file.text()
+        let text = await file.text()
+        if (text.length > 50000) {
+          text = text.slice(0, 50000) + '\n\n[... Documento troncato per lunghezza eccessiva]'
+        }
         setDocumentContext(text)
         setDocumentName(file.name)
       } else {
@@ -330,36 +368,59 @@ export default function Home() {
             <span className="text-[15px] font-semibold tracking-tight">IusMente</span>
           </div>
 
-          {/* Pill modello AI — solo desktop, discreta */}
-          <div
-            className={`hidden items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium md:flex ${border} ${
-              isDarkMode ? 'bg-white/5 text-[#a1a1a6]' : 'bg-black/[0.03] text-[#6e6e73]'
-            }`}
-            title="Gemini 2.5 Flash-Lite genera la risposta · Groq Llama 3.3 70B la valida · OpenRouter come fallback estremo"
-          >
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            </span>
-            <span><span className="font-semibold">Gemini 2.5 Flash-Lite</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· genera</span></span>
-            <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
-            <span><span className="font-semibold">Llama 3.3 70B</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· valida</span></span>
-            <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-            </span>
-            <span><span className="font-semibold">OpenRouter</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· fallback</span></span>
-            <a
-              href="/info"
-              className={`ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors ${
-                isDarkMode ? 'text-white/40 hover:bg-white/10 hover:text-white/80' : 'text-black/40 hover:bg-black/[0.06] hover:text-black/70'
+          {/* Pill modello AI + Tavily — solo desktop, discreta */}
+          <div className="hidden items-center gap-2 md:flex">
+            {/* Badge Tavily */}
+            <div
+              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${border} ${
+                isDarkMode ? 'bg-white/5 text-[#a1a1a6]' : 'bg-black/[0.03] text-[#6e6e73]'
               }`}
-              aria-label="Informazioni sull'applicazione"
-              title="Maggiori informazioni sull'architettura e i modelli usati"
+              title="Ricerca normativa su Normattiva, Gazzetta Ufficiale e Italgiure via Tavily API"
             >
-              <Info className="h-3 w-3" strokeWidth={2} />
-            </a>
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-500 opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-violet-500" />
+              </span>
+              <span className="font-semibold">Tavily</span>
+              <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· RAG</span>
+            </div>
+
+            {/* Badge modelli AI */}
+            <div
+              className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium ${border} ${
+                isDarkMode ? 'bg-white/5 text-[#a1a1a6]' : 'bg-black/[0.03] text-[#6e6e73]'
+              }`}
+              title="Gemini 2.5 Flash-Lite genera la risposta · Groq Llama 3.3 70B la valida · OpenRouter come fallback estremo"
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              </span>
+              <span><span className="font-semibold">Gemini 2.5 Flash-Lite</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· genera</span></span>
+              <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
+              <span><span className="font-semibold">Llama 3.3 70B</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· valida</span></span>
+              <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+              </span>
+              <span><span className="font-semibold">OpenRouter</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· fallback</span></span>
+              <a
+                href="/info"
+                className={`ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors ${
+                  isDarkMode ? 'text-white/40 hover:bg-white/10 hover:text-white/80' : 'text-black/40 hover:bg-black/[0.06] hover:text-black/70'
+                }`}
+                aria-label="Informazioni sull'applicazione"
+                title="Maggiori informazioni sull'architettura e i modelli usati"
+              >
+                <Info className="h-3 w-3" strokeWidth={2} />
+              </a>
+            </div>
+
+            {/* Descrizione app — compatta */}
+            <span className={`hidden text-[10px] leading-tight xl:inline ${muted}`}>
+              Assistente giuridico AI · generazione, validazione e ricerca normativa
+            </span>
           </div>
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
@@ -513,7 +574,7 @@ export default function Home() {
                   : 'Risposte formali e rigorose, come davanti alla commissione.'}
               </p>
               <div className={`mt-8 flex flex-wrap justify-center gap-2`}>
-                {['Spiega la responsabilità extracontrattuale', 'Quiz su Diritto Privato', 'Differenza tra reato e contravvenzione'].map(suggerimento => (
+                {suggerite.map(suggerimento => (
                   <button
                     key={suggerimento}
                     type="button"
@@ -669,11 +730,11 @@ export default function Home() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={loading || uploadingFile}
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${
-                    isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
+                  className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[12px] font-medium transition-colors ${
+                    isDarkMode ? 'text-[#86868b] hover:bg-white/10' : 'text-[#6e6e73] hover:bg-black/[0.06]'
                   } disabled:opacity-30`}
                   aria-label="Allega file"
-                  title="Allega file .txt o .pdf"
+                  title="Allega file .txt o .pdf (max 5 MB)"
                 >
                   {uploadingFile ? (
                     <span className="flex gap-0.5">
@@ -682,7 +743,11 @@ export default function Home() {
                       ))}
                     </span>
                   ) : (
-                    <Paperclip className="h-4 w-4" strokeWidth={1.75} />
+                    <>
+                      <Paperclip className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                      <span className="hidden sm:inline">Allega</span>
+                      <span className={`hidden text-[10px] sm:inline ${muted}`}>solo PDF o TXT</span>
+                    </>
                   )}
                 </button>
                 <input

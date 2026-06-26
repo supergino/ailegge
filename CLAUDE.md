@@ -7,7 +7,7 @@ Guida per assistenti AI quando lavorano su questo repository.
 - **Framework:** Next.js 16 (App Router, Turbopack)
 - **Linguaggio:** JavaScript (no TypeScript)
 - **UI:** React 18, Tailwind CSS 3, Lucide React
-- **AI:** Google Gemini SDK (`@google/genai`), Groq Cloud API, Tavily Search API
+- **AI:** Google Gemini SDK (`@google/genai`), Groq Cloud API, OpenRouter API, Tavily Search API
 - **PDF:** `pdf-parse`
 
 ## Comandi
@@ -40,6 +40,7 @@ Il sistema si basa su una **pipeline a 3 stadi**:
 1. **Generazione** — Gemini 2.5 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
 2. **Validazione** — Llama 3.3 70B (Groq) verifica accuratezza giuridica e allucinazioni
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto
+4. **Fallback** — Se Gemini ha quota esaurita, si passa a Groq; se anche Groq è esaurito, ultima spiaggia via OpenRouter
 
 Opzionalmente, una ricerca RAG via Tavily su domini normativi italiani (Normattiva, Gazzetta Ufficiale, Italgiure) arricchisce il contesto prima della generazione.
 
@@ -50,6 +51,7 @@ Opzionalmente, una ricerca RAG via Tavily su domini normativi italiani (Normatti
 | `GEMINI_API_KEY` | Google Gemini | ai.google.dev |
 | `GROQ_API_KEY` | Groq (Llama validatore) | console.groq.com |
 | `TAVILY_API_KEY` | Tavily (RAG) | tavily.com |
+| `OPENROUTER_API_KEY` | OpenRouter (fallback) | openrouter.ai |
 
 ## Convenzioni di codice
 
