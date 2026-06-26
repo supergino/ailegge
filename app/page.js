@@ -20,7 +20,7 @@ import {
   FileText,
 } from 'lucide-react'
 
-const APP_VERSION = '1.1.0'
+const APP_VERSION = '1.2.0'
 
 export default function Home() {
   const [input, setInput] = useState('')
@@ -334,7 +334,7 @@ export default function Home() {
             className={`hidden items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium md:flex ${border} ${
               isDarkMode ? 'bg-white/5 text-[#a1a1a6]' : 'bg-black/[0.03] text-[#6e6e73]'
             }`}
-            title="Gemini 2.5 Flash-Lite genera la risposta · Groq Llama 3.3 70B la valida per ridurre le allucinazioni"
+            title="Gemini 2.5 Flash-Lite genera la risposta · Groq Llama 3.3 70B la valida · OpenRouter come fallback estremo"
           >
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
@@ -343,6 +343,12 @@ export default function Home() {
             <span><span className="font-semibold">Gemini 2.5 Flash-Lite</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· genera</span></span>
             <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
             <span><span className="font-semibold">Llama 3.3 70B</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· valida</span></span>
+            <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+            </span>
+            <span><span className="font-semibold">OpenRouter</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· fallback</span></span>
             <a
               href="/info"
               className={`ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors ${
