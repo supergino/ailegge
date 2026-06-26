@@ -193,6 +193,7 @@ export default function Home() {
         text: data.text,
         fonti: data.fonti ?? [],
         modelli: data.modelli,
+        validazione: data.validazione,
       }]
       setMessages(messaggiAggiornati)
       salvaInCronologia(messaggiAggiornati)
@@ -574,17 +575,25 @@ export default function Home() {
                       </div>
                     )}
                     {m.role === 'assistant' && m.modelli?.generatore && (
-                      <div className={`mt-2 flex items-center gap-1.5 ${muted}`}>
+                      <div className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 ${muted}`}>
+                        {/* Generatore */}
                         {m.modelli.generatore.includes('fallback') ? (
-                          <>
+                          <span className="inline-flex items-center gap-1 text-[10px] leading-tight">
                             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            <span className="text-[10px] leading-tight">{m.modelli.generatore}</span>
-                          </>
+                            {m.modelli.generatore}
+                          </span>
                         ) : (
-                          <>
+                          <span className="inline-flex items-center gap-1 text-[10px] leading-tight">
                             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            <span className="text-[10px] leading-tight">Limiti OK · {m.modelli.generatore}</span>
-                          </>
+                            {m.modelli.generatore}
+                          </span>
+                        )}
+                        {/* Validatore */}
+                        {m.validazione && m.modelli.validatore && m.modelli.validatore !== 'non attivo' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] leading-tight">
+                            <span className={`inline-flex h-1.5 w-1.5 rounded-full ${m.validazione.valido ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                            {m.validazione.skipped ? `${m.modelli.validatore} · saltato` : m.validazione.valido ? `${m.modelli.validatore} · OK` : `${m.modelli.validatore} · ${m.validazione.problemi?.length || 0} criticità`}
+                          </span>
                         )}
                       </div>
                     )}
