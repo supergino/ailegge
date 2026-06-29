@@ -4,71 +4,13 @@ import { GoogleGenAI, Type } from '@google/genai'
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
   console.error('GEMINI_API_KEY mancante nelle variabili d\'ambiente')
-}
+
+  
 const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' })
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
-
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemma-3-27b-it:free'
-const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
-
-// Concurrency limiter: al massimo N richieste concorrenti verso Gemini
-const MAX_CONCURRENT_GEMINI = 3
-let geminiActive = 0
-const geminiQueue = []
-
-function acquireGeminiSlot() {
-  return new Promise((resolve) => {
-    if (geminiActive < MAX_CONCURRENT_GEMINI) {
-      geminiActive++
-      resolve()
-    } else {
-      geminiQueue.push(resolve)
-    }
-  })
-}
-
-function releaseGeminiSlot() {
-  geminiActive--
-  if (geminiQueue.length > 0) {
-    const next = geminiQueue.shift()
-    geminiActive++
-    next()
-  }
-}
-
-// Circuit breaker: tracciamento fallimenti recenti per modello
-const modelFailures = new Map()
-const FAILURE_WINDOW_MS = 60000
-const MAX_FAILURES = 3
-
-function isModelDegraded(modelName) {
-  const now = Date.now()
-  const failures = (modelFailures.get(modelName) || []).filter(f => now - f.timestamp < FAILURE_WINDOW_MS)
-  return failures.length >= MAX_FAILURES
-}
-
-function recordFailure(modelName) {
-  const now = Date.now()
-  const failures = (modelFailures.get(modelName) || []).filter(f => now - f.timestamp < FAILURE_WINDOW_MS)
-  failures.push({ timestamp: now })
-  modelFailures.set(modelName, failures)
-}
-
-// Tavily: ricerca web in tempo reale usata come RAG per ancorare le risposte
-// a fonti normative italiane aggiornate (Normattiva, Gazzetta Ufficiale, Italgiure).
-const TAVILY_API_KEY = process.env.TAVILY_API_KEY
-const TAVILY_ENDPOINT = 'https://api.tavily.com/search'
-const TAVILY_DOMINI_IT = [
-  'normattiva.it',
-  'gazzettaufficiale.it',
-  'italgiure.giustizia.it',
-]
-const TAVILY_MAX_RESULTS = 4
-const TAVILY_TIMEOUT_MS = 8000
 
 const SOURCE_RULES = `
 FONTI — OBBLIGATORIO per ogni risposta:
@@ -93,23 +35,9 @@ STRUTTURA di ogni fonte (oggetto JSON):
 - VIETATO costruire URL completi o path specifici: restituire SOLO il dominio.
 - VIETATO usare siti diversi dai quattro elencati.`
 
-const FORMATO_OUTPUT = `
-FORMATO OUTPUT JSON — OBBLIGATORIO:
-La risposta DEVE essere un oggetto JSON con questa struttura esatta:
-{
-  "text": "Il testo completo della risposta in italiano. Non includere qui le fonti.",
-  "fonti": [
-    { "nome": "Art. 2043 c.c.", "sito": "normattiva.it" },
-    { "nome": "Art. 54 Cost.", "sito": "normattiva.it" }
-  ]
-}
-- "text": stringa obbligatoria — la risposta vera e propria.
-- "fonti": array obbligatorio di oggetti { "nome": string, "sito": string } — almeno 1 voce.
-- "sito" deve essere uno tra: normattiva.it, gazzettaufficiale.it, italgiure.giustizia.it, eur-lex.europa.eu`
-
 export async function POST(req) {
   try {
-    const { message, messages: previousMessages, soloItalia, modalitaTutor, documentContext, documentName } = await req.json();
+    const { message, soloItalia, modalitaTutor } = await req.json();
 
     // Validazione base dell'input
     if (!message) {
@@ -158,33 +86,7 @@ Comportamento accademico:
       ? 'Ambito giurisdizionale: limita l\'analisi esclusivamente al diritto interno italiano (Codice Civile, Codice Penale, Costituzione e leggi speciali).'
       : 'Ambito giurisdizionale: integra l\'analisi con il diritto dell\'Unione Europea, i trattati internazionali e la giurisprudenza sovranazionale (CGUE, CEDU).'
 
-    // RAG: ricerca normativa italiana su Tavily (solo se soloItalia e messaggio significativo)
-    let contestoRAG = ''
-    let tavilyMeta = { eseguita: false, motivo: 'non_attivo', numRisultati: 0 }
-    if (soloItalia && message.trim().length >= 20 && TAVILY_API_KEY) {
-      const ricerca = await ricercaTavily(message)
-      tavilyMeta = {
-        eseguita: ricerca.eseguita,
-        motivo: ricerca.motivo,
-        numRisultati: ricerca.risultati.length,
-      }
-      if (ricerca.risultati.length > 0) {
-        contestoRAG = contestoTavilyPerPrompt(ricerca.risultati)
-        console.log(`[IusMente/Tavily] RAG attivo, ${ricerca.risultati.length} risultati iniettati nel prompt`)
-      }
-    } else if (soloItalia && message.trim().length < 20) {
-      tavilyMeta = { eseguita: false, motivo: 'messaggio_troppo_corto', numRisultati: 0 }
-    } else if (!soloItalia) {
-      tavilyMeta = { eseguita: false, motivo: 'ambito_ue', numRisultati: 0 }
-    } else {
-      tavilyMeta = { eseguita: false, motivo: 'api_key_mancante', numRisultati: 0 }
-    }
-
-    const documentInstruction = documentContext && documentName
-      ? `\n\nDOCUMENTO ALLEGATO ("${documentName}"):\nL'utente ha allegato il seguente documento. Usalo come contesto primario per rispondere alle domande che lo riguardano. Se la domanda non è pertinente al documento, rispondi comunque con le tue conoscenze giuridiche.\n\n--- INIZIO DOCUMENTO ---\n${documentContext}\n--- FINE DOCUMENTO ---`
-      : ''
-
-    const systemInstruction = `${roleInstruction}\n\n${geoInstruction}${documentInstruction}\n\n${SOURCE_RULES}${FORMATO_OUTPUT}${contestoRAG}`
+    const systemInstruction = `${roleInstruction}\n\n${geoInstruction}\n\n${SOURCE_RULES}`
 
     // Schema condiviso per le risposte Gemini (generazione e rigenerazione)
     const responseSchema = {
@@ -217,228 +119,46 @@ Comportamento accademico:
       required: ['text', 'fonti'],
     }
 
-    // Funzione che costruisce i contenuti multi-turn per Gemini e invoca il modello
+    // Funzione che genera una risposta con Gemini (riusata per generazione e rigenerazione)
     const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-    const buildContents = (prevMessages, currentMessage, additionalContext = '') => {
-      const history = (prevMessages || []).slice(-10).map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.text }],
-      }))
+    const callGemini = async (userText, additionalContext = '') => {
       const userPrompt = additionalContext
-        ? `${currentMessage}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
-        : currentMessage
-      return [...history, { role: 'user', parts: [{ text: userPrompt }] }]
-    }
+        ? `${userText}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
+        : userText
 
-    const callGemini = async (prevMessages, currentMessage, additionalContext = '') => {
-      const contents = buildContents(prevMessages, currentMessage, additionalContext)
-      const MAX_RETRY = 5
-      let lastErr
-      const modello = 'gemini-2.5-flash'
-
-      await acquireGeminiSlot()
-      try {
-        for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
-          try {
-            const res = await ai.models.generateContent({
-              model: modello,
-              contents,
-              config: {
-                systemInstruction: systemInstruction,
-                temperature: isTutor ? 0.75 : 0.15,
-                topP: isTutor ? 0.95 : 0.85,
-                responseMimeType: 'application/json',
-                responseSchema,
-              },
-            })
-            return { response: res, retryCount: tentativo }
-          } catch (err) {
-            lastErr = err
-            const status = err?.status ?? err?.code
-            const msg = String(err?.message ?? '')
-            const isRetriable = status === 503 || (status === 429 && !/quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg))
-            if (!isRetriable || tentativo === MAX_RETRY) {
-              recordFailure(modello)
-              throw err
-            }
-            const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 1000, 15000)
-            console.warn(`[IusMente/Gemini] tentativo ${tentativo + 1} fallito (status=${status}), riprovo tra ${Math.round(delay)}ms`)
-            await sleep(delay)
-          }
-        }
-        throw lastErr
-      } finally {
-        releaseGeminiSlot()
-      }
-    }
-
-    const callGroq = async (prevMessages, currentMessage, additionalContext = '') => {
-      const history = (prevMessages || []).slice(-10).map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.text,
-      }))
-      const userPrompt = additionalContext
-        ? `${currentMessage}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
-        : currentMessage
       const MAX_RETRY = 2
       let lastErr
       for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
         try {
-          const res = await fetch(GROQ_ENDPOINT, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${GROQ_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: GROQ_MODEL,
-              messages: [
-                { role: 'system', content: systemInstruction },
-                ...history,
-                { role: 'user', content: userPrompt },
-              ],
+          const res = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-lite',
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            config: {
+              systemInstruction: systemInstruction,
               temperature: isTutor ? 0.75 : 0.15,
-              response_format: { type: 'json_object' },
-            }),
-          })
-          if (!res.ok) {
-            const errBody = await res.text()
-            throw Object.assign(new Error(`Groq ${res.status}: ${errBody.slice(0, 200)}`), { status: res.status })
-          }
-          const data = await res.json()
-          const text = data?.choices?.[0]?.message?.content || ''
-          return {
-            response: {
-              candidates: [{ content: { parts: [{ text }] } }],
-              text,
+              topP: isTutor ? 0.95 : 0.85,
+              responseMimeType: 'application/json',
+              responseSchema,
             },
-            retryCount: tentativo,
-          }
+          })
+          return res
         } catch (err) {
           lastErr = err
-          const isRetriable = err?.status === 503
-          if (!isRetriable || tentativo === MAX_RETRY) {
-            recordFailure(GROQ_MODEL)
-            throw err
-          }
-          const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 500, 8000)
-          console.warn(`[IusMente/Groq] tentativo ${tentativo + 1} fallito (status=${err?.status}), riprovo tra ${Math.round(delay)}ms`)
+          const status = err?.status ?? err?.code
+          const msg = String(err?.message ?? '')
+          const isRetriable = status === 503 || (status === 429 && !/quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg))
+          if (!isRetriable || tentativo === MAX_RETRY) throw err
+          const delay = 800 * Math.pow(2, tentativo)
+          console.warn(`[IusMente/Gemini] tentativo ${tentativo + 1} fallito (status=${status}), riprovo tra ${delay}ms`)
           await sleep(delay)
         }
       }
       throw lastErr
     }
 
-    const callOpenRouter = async (prevMessages, currentMessage, additionalContext = '') => {
-      const history = (prevMessages || []).slice(-10).map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.text,
-      }))
-      const userPrompt = additionalContext
-        ? `${currentMessage}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
-        : currentMessage
-      const MAX_RETRY = 2
-      let lastErr
-      for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
-        try {
-          const res = await fetch(OPENROUTER_ENDPOINT, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'https://iusmente.app',
-              'X-Title': 'IusMente',
-            },
-            body: JSON.stringify({
-              model: OPENROUTER_MODEL,
-              messages: [
-                { role: 'system', content: systemInstruction },
-                ...history,
-                { role: 'user', content: userPrompt },
-              ],
-              temperature: isTutor ? 0.75 : 0.15,
-              response_format: { type: 'json_object' },
-            }),
-          })
-          if (!res.ok) {
-            const errBody = await res.text()
-            throw Object.assign(new Error(`OpenRouter ${res.status}: ${errBody.slice(0, 200)}`), { status: res.status })
-          }
-          const data = await res.json()
-          const text = data?.choices?.[0]?.message?.content || ''
-          return {
-            response: {
-              candidates: [{ content: { parts: [{ text }] } }],
-              text,
-            },
-            retryCount: tentativo,
-          }
-        } catch (err) {
-          lastErr = err
-          const isRetriable = err?.status === 503
-          if (!isRetriable || tentativo === MAX_RETRY) {
-            recordFailure(OPENROUTER_MODEL)
-            throw err
-          }
-          const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 500, 8000)
-          console.warn(`[IusMente/OpenRouter] tentativo ${tentativo + 1} fallito (status=${err?.status}), riprovo tra ${Math.round(delay)}ms`)
-          await sleep(delay)
-        }
-      }
-      throw lastErr
-    }
-
-    const isOverloadError = (err) => {
-      const status = err?.status ?? err?.code
-      const msg = String(err?.message ?? '')
-      return status === 503 || /UNAVAILABLE|high demand/i.test(msg)
-    }
-    const isQuotaError = (err) => {
-      const status = err?.status ?? err?.code
-      const msg = String(err?.message ?? '')
-      return status === 429 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)
-    }
-    const isErroreTransitorio = (err) => isOverloadError(err) || isQuotaError(err)
-
-    const callModello = async (prevMessages, currentMessage, additionalContext = '') => {
-      // 1. Prova Gemini (salta se degradato)
-      if (!isModelDegraded('gemini-2.5-flash')) {
-        try {
-          const result = await callGemini(prevMessages, currentMessage, additionalContext)
-          return { ...result, modello: 'Gemini 2.5 Flash' }
-        } catch (err) {
-          if (!isErroreTransitorio(err)) throw err
-          console.warn('[IusMente] Gemini non disponibile, fallback su Groq')
-        }
-      } else {
-        console.warn('[IusMente] Gemini degradato (3+ fallimenti recenti), bypasso')
-      }
-      // 2. Gemini esaurito/sovraccarico/degradato → prova Groq
-      if (GROQ_API_KEY && !isModelDegraded(GROQ_MODEL)) {
-        try {
-          const result = await callGroq(prevMessages, currentMessage, additionalContext)
-          return { ...result, modello: `Groq ${GROQ_MODEL} (fallback Gemini)` }
-        } catch (err) {
-          if (!isErroreTransitorio(err)) throw err
-          console.warn('[IusMente] Groq non disponibile, fallback su OpenRouter')
-        }
-      } else if (GROQ_API_KEY) {
-        console.warn('[IusMente] Groq degradato (3+ fallimenti recenti), bypasso')
-      }
-      // 3. Anche Groq esaurito/sovraccarico/degradato → ultima spiaggia: OpenRouter
-      if (OPENROUTER_API_KEY && !isModelDegraded(OPENROUTER_MODEL)) {
-        const result = await callOpenRouter(prevMessages, currentMessage, additionalContext)
-        return { ...result, modello: `OpenRouter ${OPENROUTER_MODEL} (fallback estremo)` }
-      } else if (OPENROUTER_API_KEY) {
-        console.warn('[IusMente] OpenRouter degradato, nessun modello disponibile')
-        throw new Error('Tutti i modelli AI sono degradati per fallimenti recenti. Riprova tra qualche minuto.')
-      }
-      throw new Error('Tutti i modelli AI non sono disponibili (sovraccarico o quota esaurita)')
-    }
-
-    // Generazione iniziale con cronologia
-    const { response: geminiRes, retryCount: retryCount1, modello: modelloGeneratore } = await callModello(previousMessages, message)
-    const raw = geminiRes.candidates?.[0]?.content?.parts?.[0]?.text ?? geminiRes.text ?? ''
+    // Generazione iniziale
+    const response = await callGemini(message)
+    const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? response.text ?? ''
 
     // Parsing iniziale
     let parsed = null
@@ -473,14 +193,10 @@ Comportamento accademico:
     let rigenerato = false
     let testoFinale = text
     let fontiFinali = fontiNormalizzate
-    const primaChiamataProblematica = retryCount1 > 0
-    if (primaChiamataProblematica) {
-      console.log(`[IusMente] prima chiamata ha ritentato ${retryCount1} volte, salto rigenerazione per non sovraccaricare`)
-    }
-    if (!validazione.valido && validazione.problemi?.length > 0 && !primaChiamataProblematica) {
+    if (!validazione.valido && validazione.problemi?.length > 0) {
       try {
         const contestoProblemi = validazione.problemi.map((p, i) => `${i + 1}. ${p}`).join('\n')
-        const { response: response2 } = await callModello(previousMessages, message, contestoProblemi)
+        const response2 = await callGemini(message, contestoProblemi)
         const raw2 = response2.candidates?.[0]?.content?.parts?.[0]?.text ?? response2.text ?? ''
         try {
           const parsed2 = JSON.parse(raw2)
@@ -503,10 +219,9 @@ Comportamento accademico:
       modalita: isTutor ? 'tutor' : 'professore',
       fonti: fontiFinali,
       modelli: {
-        generatore: modelloGeneratore,
+        generatore: 'Gemini 2.5 Flash-Lite',
         validatore: GROQ_API_KEY ? `Groq ${GROQ_MODEL}` : 'non attivo',
         rigenerato,
-        tentativiGenerazione: retryCount1 + 1,
       },
       validazione: {
         eseguita: !!GROQ_API_KEY && !validazione.skipped,
@@ -515,9 +230,6 @@ Comportamento accademico:
         confidenza: validazione.confidenza,
         skipped: validazione.skipped,
       },
-      tavily: tavilyMeta,
-      documentContext: documentContext || null,
-      documentName: documentName || null,
     })
 
   } catch (error) {
@@ -534,11 +246,11 @@ Comportamento accademico:
         { status: 429 }
       )
     }
-    if (status === 503 || /UNAVAILABLE|high demand|non disponibili/i.test(msg)) {
+    if (status === 503 || /UNAVAILABLE|high demand/i.test(msg)) {
       return NextResponse.json(
         {
           error: 'Servizio temporaneamente sovraccarico',
-          detail: 'Tutti i modelli AI disponibili (Gemini, Groq, OpenRouter) sono sovraccarichi o irraggiungibili. Riprova tra qualche secondo.',
+          detail: 'Il modello sta ricevendo molte richieste. Riprova tra qualche secondo.',
         },
         { status: 503 }
       )
@@ -586,69 +298,6 @@ function normalizzaFonti(fonti) {
       return null
     })
     .filter(Boolean)
-}
-
-// RAG: ricerca web su Tavily limitata ai domini .it normativi.
-// Restituisce sempre { eseguita, motivo, risultati } — mai un throw, in modo che
-// un'indisponibilità di Tavily degradi silenziosamente il flusso anziché rompere la chat.
-async function ricercaTavily(query) {
-  if (!TAVILY_API_KEY) {
-    return { eseguita: false, motivo: 'api_key_mancante', risultati: [] }
-  }
-
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), TAVILY_TIMEOUT_MS)
-
-  try {
-    const res = await fetch(TAVILY_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${TAVILY_API_KEY}`,
-      },
-      body: JSON.stringify({
-        query,
-        max_results: TAVILY_MAX_RESULTS,
-        search_depth: 'basic', // 1 credito per query; 'advanced' ne costa 2
-        topic: 'general',
-        include_domains: TAVILY_DOMINI_IT,
-      }),
-      signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
-
-    if (!res.ok) {
-      const errBody = await res.text()
-      throw new Error(`Tavily ${res.status}: ${errBody.slice(0, 200)}`)
-    }
-    const data = await res.json()
-    const risultati = Array.isArray(data?.results) ? data.results : []
-    return { eseguita: true, motivo: null, risultati }
-  } catch (err) {
-    clearTimeout(timeoutId)
-    if (err?.name === 'AbortError') {
-      console.warn('[IusMente/Tavily] timeout dopo 8s, procedo senza RAG')
-      return { eseguita: false, motivo: 'timeout', risultati: [] }
-    }
-    console.warn('[IusMente/Tavily] errore, procedo senza RAG:', err.message)
-    return { eseguita: false, motivo: 'errore', risultati: [] }
-  }
-}
-
-// Formatta i risultati Tavily in un blocco di testo da appendere al systemInstruction.
-// Limita la dimensione di ogni estratto per non esplodere il prompt di Gemini.
-function contestoTavilyPerPrompt(risultati) {
-  if (!Array.isArray(risultati) || risultati.length === 0) return ''
-  const blocchi = risultati.map((r, i) => {
-    const titolo = (r?.title || 'Senza titolo').slice(0, 200)
-    const contenuto = (r?.content || '').slice(0, 600)
-    const url = r?.url || ''
-    return `[${i + 1}] ${titolo}\nURL: ${url}\nEstratto: ${contenuto}`
-  })
-  return `\n\nCONTESTO NORMATIVO RECUPERATO DA WEB (Tavily):
-Usa i seguenti estratti come FONTE PRIMARIA per articoli di legge, commi e riferimenti normativi italiani. Cita solo ciò che trovi confermato qui sotto o che è principio consolidato. Se il contesto non copre la domanda, segnalalo onestamente.
-
-${blocchi.join('\n\n')}`
 }
 
 // Validatore: Groq (Llama 3.3 70B) verifica la risposta di Gemini per ridurre allucinazioni.
