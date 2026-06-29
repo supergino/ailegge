@@ -787,14 +787,17 @@ export default function Home() {
             </div>
           </form>
           {/* Credit */}
-          <div className={`mx-auto mt-2 flex max-w-2xl items-center justify-center gap-1.5 text-[11px] ${muted}`}>
-            <span>Realizzato da</span>
-            <span className="inline-flex items-center gap-1 font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <div className={`mx-auto mt-2 inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1 text-[11px] ${isDarkMode ? 'bg-[#1d1d1f]/60' : 'bg-white/80 shadow-sm shadow-black/[0.03]'}`}>
+            <span className={isDarkMode ? 'text-[#a1a1a6]' : 'text-[#6e6e73]'}>Realizzato da</span>
+            <span
+              className="inline-flex items-center gap-1 font-semibold"
+              style={{ color: isDarkMode ? '#f5f5f7' : '#1d1d1f' }}
+            >
               Andrea
               <span aria-hidden="true">🐻</span>
             </span>
             <span className={`${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
-            <span className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] ${isDarkMode ? 'bg-white/5' : 'bg-black/[0.04]'}`}>
+            <span className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] leading-none ${isDarkMode ? 'bg-white/10 text-[#a1a1a6]' : 'bg-black/[0.06] text-[#6e6e73]'}`}>
               v{APP_VERSION}
             </span>
           </div>
