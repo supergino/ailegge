@@ -20,7 +20,7 @@ import {
   FileText,
 } from 'lucide-react'
 
-const APP_VERSION = '1.2.0'
+const APP_VERSION = '1.3.0'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',
@@ -197,6 +197,28 @@ export default function Home() {
     setDocumentName('')
   }
 
+  const fetchWithRetry = async (body, maxRetries = 3) => {
+    for (let tentativo = 0; tentativo <= maxRetries; tentativo++) {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+
+      if (!data.error) return data
+
+      const isOverload = res.status === 503 || /sovraccarico|UNAVAILABLE/i.test(data.error)
+      if (!isOverload || tentativo === maxRetries) {
+        throw { data, status: res.status }
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 500, 8000)
+      console.warn(`[IusMente/Client] tentativo ${tentativo + 1} fallito (503), riprovo tra ${Math.round(delay)}ms`)
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+
   const handleInvia = async (e) => {
     e.preventDefault()
     if (!input.trim() || loading || cooldown) return
@@ -207,25 +229,16 @@ export default function Home() {
     setMessages(nuoviMessaggi)
     setLoading(true)
 
-    let data
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage,
-          messages: messages,
-          soloItalia,
-          modalitaTutor,
-          documentContext: documentContext || undefined,
-          documentName: documentName || undefined,
-        }),
+      const data = await fetchWithRetry({
+        message: userMessage,
+        messages: messages,
+        soloItalia,
+        modalitaTutor,
+        documentContext: documentContext || undefined,
+        documentName: documentName || undefined,
       })
 
-      data = await res.json()
-      if (data.error) throw new Error(data.error)
-
-      // Clear document after first message using it (context already passed)
       const messaggiAggiornati = [...nuoviMessaggi, {
         role: 'assistant',
         text: data.text,
@@ -237,9 +250,11 @@ export default function Home() {
       salvaInCronologia(messaggiAggiornati)
     } catch (err) {
       console.error(err)
-      const messaggioErrore = data?.detail
-        ? `${data.error}. ${data.detail}`
-        : (data?.error || 'Si è verificato un errore. Riprova tra qualche istante.')
+      const detail = err?.data?.detail
+      const errorText = err?.data?.error
+      const messaggioErrore = detail
+        ? `${errorText}. ${detail}`
+        : (errorText || 'Si è verificato un errore. Riprova tra qualche istante.')
       setMessages(prev => [...prev, { role: 'assistant', text: messaggioErrore }])
     } finally {
       setLoading(false)

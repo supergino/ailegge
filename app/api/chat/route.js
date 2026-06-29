@@ -15,6 +15,49 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemma-3-27b-it:free'
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 
+// Concurrency limiter: al massimo N richieste concorrenti verso Gemini
+const MAX_CONCURRENT_GEMINI = 3
+let geminiActive = 0
+const geminiQueue = []
+
+function acquireGeminiSlot() {
+  return new Promise((resolve) => {
+    if (geminiActive < MAX_CONCURRENT_GEMINI) {
+      geminiActive++
+      resolve()
+    } else {
+      geminiQueue.push(resolve)
+    }
+  })
+}
+
+function releaseGeminiSlot() {
+  geminiActive--
+  if (geminiQueue.length > 0) {
+    const next = geminiQueue.shift()
+    geminiActive++
+    next()
+  }
+}
+
+// Circuit breaker: tracciamento fallimenti recenti per modello
+const modelFailures = new Map()
+const FAILURE_WINDOW_MS = 60000
+const MAX_FAILURES = 3
+
+function isModelDegraded(modelName) {
+  const now = Date.now()
+  const failures = (modelFailures.get(modelName) || []).filter(f => now - f.timestamp < FAILURE_WINDOW_MS)
+  return failures.length >= MAX_FAILURES
+}
+
+function recordFailure(modelName) {
+  const now = Date.now()
+  const failures = (modelFailures.get(modelName) || []).filter(f => now - f.timestamp < FAILURE_WINDOW_MS)
+  failures.push({ timestamp: now })
+  modelFailures.set(modelName, failures)
+}
+
 // Tavily: ricerca web in tempo reale usata come RAG per ancorare le risposte
 // a fonti normative italiane aggiornate (Normattiva, Gazzetta Ufficiale, Italgiure).
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY
@@ -191,32 +234,42 @@ Comportamento accademico:
       const contents = buildContents(prevMessages, currentMessage, additionalContext)
       const MAX_RETRY = 5
       let lastErr
-      for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
-        try {
-          const res = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-lite',
-            contents,
-            config: {
-              systemInstruction: systemInstruction,
-              temperature: isTutor ? 0.75 : 0.15,
-              topP: isTutor ? 0.95 : 0.85,
-              responseMimeType: 'application/json',
-              responseSchema,
-            },
-          })
-          return { response: res, retryCount: tentativo }
-        } catch (err) {
-          lastErr = err
-          const status = err?.status ?? err?.code
-          const msg = String(err?.message ?? '')
-          const isRetriable = status === 503 || (status === 429 && !/quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg))
-          if (!isRetriable || tentativo === MAX_RETRY) throw err
-          const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 1000, 15000)
-          console.warn(`[IusMente/Gemini] tentativo ${tentativo + 1} fallito (status=${status}), riprovo tra ${Math.round(delay)}ms`)
-          await sleep(delay)
+      const modello = 'gemini-2.5-flash'
+
+      await acquireGeminiSlot()
+      try {
+        for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
+          try {
+            const res = await ai.models.generateContent({
+              model: modello,
+              contents,
+              config: {
+                systemInstruction: systemInstruction,
+                temperature: isTutor ? 0.75 : 0.15,
+                topP: isTutor ? 0.95 : 0.85,
+                responseMimeType: 'application/json',
+                responseSchema,
+              },
+            })
+            return { response: res, retryCount: tentativo }
+          } catch (err) {
+            lastErr = err
+            const status = err?.status ?? err?.code
+            const msg = String(err?.message ?? '')
+            const isRetriable = status === 503 || (status === 429 && !/quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg))
+            if (!isRetriable || tentativo === MAX_RETRY) {
+              recordFailure(modello)
+              throw err
+            }
+            const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 1000, 15000)
+            console.warn(`[IusMente/Gemini] tentativo ${tentativo + 1} fallito (status=${status}), riprovo tra ${Math.round(delay)}ms`)
+            await sleep(delay)
+          }
         }
+        throw lastErr
+      } finally {
+        releaseGeminiSlot()
       }
-      throw lastErr
     }
 
     const callGroq = async (prevMessages, currentMessage, additionalContext = '') => {
@@ -264,7 +317,10 @@ Comportamento accademico:
         } catch (err) {
           lastErr = err
           const isRetriable = err?.status === 503
-          if (!isRetriable || tentativo === MAX_RETRY) throw err
+          if (!isRetriable || tentativo === MAX_RETRY) {
+            recordFailure(GROQ_MODEL)
+            throw err
+          }
           const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 500, 8000)
           console.warn(`[IusMente/Groq] tentativo ${tentativo + 1} fallito (status=${err?.status}), riprovo tra ${Math.round(delay)}ms`)
           await sleep(delay)
@@ -320,7 +376,10 @@ Comportamento accademico:
         } catch (err) {
           lastErr = err
           const isRetriable = err?.status === 503
-          if (!isRetriable || tentativo === MAX_RETRY) throw err
+          if (!isRetriable || tentativo === MAX_RETRY) {
+            recordFailure(OPENROUTER_MODEL)
+            throw err
+          }
           const delay = Math.min(1000 * Math.pow(2, tentativo) + Math.random() * 500, 8000)
           console.warn(`[IusMente/OpenRouter] tentativo ${tentativo + 1} fallito (status=${err?.status}), riprovo tra ${Math.round(delay)}ms`)
           await sleep(delay)
@@ -342,28 +401,37 @@ Comportamento accademico:
     const isErroreTransitorio = (err) => isOverloadError(err) || isQuotaError(err)
 
     const callModello = async (prevMessages, currentMessage, additionalContext = '') => {
-      // 1. Prova Gemini
-      try {
-        const result = await callGemini(prevMessages, currentMessage, additionalContext)
-        return { ...result, modello: 'Gemini 2.5 Flash-Lite' }
-      } catch (err) {
-        if (!isErroreTransitorio(err)) throw err
-      }
-      // 2. Gemini esaurito/sovraccarico → prova Groq
-      if (GROQ_API_KEY) {
+      // 1. Prova Gemini (salta se degradato)
+      if (!isModelDegraded('gemini-2.5-flash')) {
         try {
+          const result = await callGemini(prevMessages, currentMessage, additionalContext)
+          return { ...result, modello: 'Gemini 2.5 Flash' }
+        } catch (err) {
+          if (!isErroreTransitorio(err)) throw err
           console.warn('[IusMente] Gemini non disponibile, fallback su Groq')
+        }
+      } else {
+        console.warn('[IusMente] Gemini degradato (3+ fallimenti recenti), bypasso')
+      }
+      // 2. Gemini esaurito/sovraccarico/degradato → prova Groq
+      if (GROQ_API_KEY && !isModelDegraded(GROQ_MODEL)) {
+        try {
           const result = await callGroq(prevMessages, currentMessage, additionalContext)
           return { ...result, modello: `Groq ${GROQ_MODEL} (fallback Gemini)` }
         } catch (err) {
           if (!isErroreTransitorio(err)) throw err
+          console.warn('[IusMente] Groq non disponibile, fallback su OpenRouter')
         }
+      } else if (GROQ_API_KEY) {
+        console.warn('[IusMente] Groq degradato (3+ fallimenti recenti), bypasso')
       }
-      // 3. Anche Groq esaurito/sovraccarico → ultima spiaggia: OpenRouter
-      if (OPENROUTER_API_KEY) {
-        console.warn('[IusMente] Gemini e Groq non disponibili, fallback su OpenRouter')
+      // 3. Anche Groq esaurito/sovraccarico/degradato → ultima spiaggia: OpenRouter
+      if (OPENROUTER_API_KEY && !isModelDegraded(OPENROUTER_MODEL)) {
         const result = await callOpenRouter(prevMessages, currentMessage, additionalContext)
         return { ...result, modello: `OpenRouter ${OPENROUTER_MODEL} (fallback estremo)` }
+      } else if (OPENROUTER_API_KEY) {
+        console.warn('[IusMente] OpenRouter degradato, nessun modello disponibile')
+        throw new Error('Tutti i modelli AI sono degradati per fallimenti recenti. Riprova tra qualche minuto.')
       }
       throw new Error('Tutti i modelli AI non sono disponibili (sovraccarico o quota esaurita)')
     }
