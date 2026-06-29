@@ -329,11 +329,17 @@ Comportamento accademico:
       throw lastErr
     }
 
+    const isOverloadError = (err) => {
+      const status = err?.status ?? err?.code
+      const msg = String(err?.message ?? '')
+      return status === 503 || /UNAVAILABLE|high demand/i.test(msg)
+    }
     const isQuotaError = (err) => {
       const status = err?.status ?? err?.code
       const msg = String(err?.message ?? '')
       return status === 429 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)
     }
+    const isErroreTransitorio = (err) => isOverloadError(err) || isQuotaError(err)
 
     const callModello = async (prevMessages, currentMessage, additionalContext = '') => {
       // 1. Prova Gemini
@@ -341,25 +347,25 @@ Comportamento accademico:
         const result = await callGemini(prevMessages, currentMessage, additionalContext)
         return { ...result, modello: 'Gemini 2.5 Flash-Lite' }
       } catch (err) {
-        if (!isQuotaError(err)) throw err
+        if (!isErroreTransitorio(err)) throw err
       }
-      // 2. Quota Gemini esaurita → prova Groq
+      // 2. Gemini esaurito/sovraccarico → prova Groq
       if (GROQ_API_KEY) {
         try {
-          console.warn('[IusMente] Quota Gemini esaurita, fallback su Groq')
+          console.warn('[IusMente] Gemini non disponibile, fallback su Groq')
           const result = await callGroq(prevMessages, currentMessage, additionalContext)
-          return { ...result, modello: `Groq ${GROQ_MODEL} (fallback quota Gemini)` }
+          return { ...result, modello: `Groq ${GROQ_MODEL} (fallback Gemini)` }
         } catch (err) {
-          if (!isQuotaError(err)) throw err
+          if (!isErroreTransitorio(err)) throw err
         }
       }
-      // 3. Anche Groq esaurito → ultima spiaggia: OpenRouter
+      // 3. Anche Groq esaurito/sovraccarico → ultima spiaggia: OpenRouter
       if (OPENROUTER_API_KEY) {
-        console.warn('[IusMente] Quota Gemini e Groq esaurite, fallback su OpenRouter')
+        console.warn('[IusMente] Gemini e Groq non disponibili, fallback su OpenRouter')
         const result = await callOpenRouter(prevMessages, currentMessage, additionalContext)
         return { ...result, modello: `OpenRouter ${OPENROUTER_MODEL} (fallback estremo)` }
       }
-      throw new Error('Tutti i modelli AI gratuiti hanno esaurito la quota')
+      throw new Error('Tutti i modelli AI non sono disponibili (sovraccarico o quota esaurita)')
     }
 
     // Generazione iniziale con cronologia
@@ -460,11 +466,11 @@ Comportamento accademico:
         { status: 429 }
       )
     }
-    if (status === 503 || /UNAVAILABLE|high demand/i.test(msg)) {
+    if (status === 503 || /UNAVAILABLE|high demand|non disponibili/i.test(msg)) {
       return NextResponse.json(
         {
           error: 'Servizio temporaneamente sovraccarico',
-          detail: 'Il modello sta ricevendo molte richieste. Riprova tra qualche secondo.',
+          detail: 'Tutti i modelli AI disponibili (Gemini, Groq, OpenRouter) sono sovraccarichi o irraggiungibili. Riprova tra qualche secondo.',
         },
         { status: 503 }
       )
