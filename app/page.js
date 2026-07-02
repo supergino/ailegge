@@ -456,16 +456,17 @@ export default function Home() {
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`hidden h-8 w-8 items-center justify-center rounded-full transition-colors md:flex ${
-                isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
-              }`}
-              aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
-            >
-              {isDarkMode ? <Sun className="h-[17px] w-[17px]" strokeWidth={1.75} /> : <Moon className="h-[17px] w-[17px]" strokeWidth={1.75} />}
-            </button>
+<button
+               type="button"
+               onClick={() => setIsDarkMode(!isDarkMode)}
+               className={`hidden h-8 w-8 items-center justify-center rounded-full transition-colors md:flex ${
+                 isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
+                }`}
+               aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
+              >
+                {isDarkMode ? <Sun className="h-[17px] w-[17px]" strokeWidth={1.75} /> : <Moon className="h-[17px] w-[17px]" strokeWidth={1.75} />}
+                {isDarkMode ? 'Chiaro' : 'Scuro'}
+              </button>
 
             <button
               type="button"
