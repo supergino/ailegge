@@ -4,8 +4,9 @@ import { GoogleGenAI, Type } from '@google/genai'
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
   console.error('GEMINI_API_KEY mancante nelle variabili d\'ambiente')
+}
 
-  
+
 const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' })
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY

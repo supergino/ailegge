@@ -431,12 +431,20 @@ export default function Home() {
                 <Info className="h-3 w-3" strokeWidth={2} />
               </a>
             </div>
-
-            {/* Descrizione app — compatta */}
-            <span className={`hidden text-[10px] leading-tight xl:inline ${muted}`}>
-              Assistente giuridico AI · generazione, validazione e ricerca normativa
-            </span>
           </div>
+
+{cronologia.length > 0 && (
+    <div className="flex h-12 w-full items-center justify-between border-b px-3 pb-2 md:hidden">
+      <div className="flex items-center gap-1">
+        <BookOpen className="h-4 w-4 text-[#0071e3]" strokeWidth={1.75} />
+        <span className="text-sm font-semibold tracking-tight">Domande</span>
+      </div>
+      <div className="flex items-center gap-2 md:flex-col justify-end">
+        <Clock className="h-4 w-4 text-[#0071e3]" strokeWidth={1.75} />
+        <span className="text-sm font-semibold tracking-tight">Cronologia</span>
+      </div>
+    </div>
+)}
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             {/* Cronologia: icona compatta su mobile, niente sidebar */}
@@ -459,13 +467,12 @@ export default function Home() {
 <button
                type="button"
                onClick={() => setIsDarkMode(!isDarkMode)}
-               className={`hidden h-8 w-8 items-center justify-center rounded-full transition-colors md:flex ${
+               className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
                  isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
                 }`}
                aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
               >
                 {isDarkMode ? <Sun className="h-[17px] w-[17px]" strokeWidth={1.75} /> : <Moon className="h-[17px] w-[17px]" strokeWidth={1.75} />}
-                {isDarkMode ? 'Chiaro' : 'Scuro'}
               </button>
 
             <button
