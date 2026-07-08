@@ -38,7 +38,7 @@ STRUTTURA di ogni fonte (oggetto JSON):
 
 export async function POST(req) {
   try {
-    const { message, soloItalia, modalitaTutor } = await req.json();
+    const { message, messages = [], soloItalia, modalitaTutor, documentContext, documentName } = await req.json();
 
     // Validazione base dell'input
     if (!message) {
@@ -87,7 +87,17 @@ Comportamento accademico:
       ? 'Ambito giurisdizionale: limita l\'analisi esclusivamente al diritto interno italiano (Codice Civile, Codice Penale, Costituzione e leggi speciali).'
       : 'Ambito giurisdizionale: integra l\'analisi con il diritto dell\'Unione Europea, i trattati internazionali e la giurisprudenza sovranazionale (CGUE, CEDU).'
 
-    const systemInstruction = `${roleInstruction}\n\n${geoInstruction}\n\n${SOURCE_RULES}`
+    let systemInstruction = `${roleInstruction}\n\n${geoInstruction}\n\n${SOURCE_RULES}`
+
+    // Context: documento caricato dall'utente (se presente)
+    let documentContextStr = ''
+    if (documentContext && documentName) {
+      const troncato = documentContext.length > 25000
+        ? documentContext.slice(0, 25000) + '\n\n[... Documento troncato per lunghezza eccessiva]'
+        : documentContext
+      documentContextStr = `\n\nDocumento di riferimento caricato dall'utente — "${documentName}":\n"""${troncato}"""`
+      systemInstruction += documentContextStr
+    }
 
     // Schema condiviso per le risposte Gemini (generazione e rigenerazione)
     const responseSchema = {
@@ -122,10 +132,30 @@ Comportamento accademico:
 
     // Funzione che genera una risposta con Gemini (riusata per generazione e rigenerazione)
     const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-    const callGemini = async (userText, additionalContext = '') => {
+    const callGemini = async (userText, historyMessages = [], additionalContext = '') => {
+      // Build full conversation history for Gemini
+      const contents = []
+
+      // Add previous messages (conversation history)
+      for (const msg of historyMessages) {
+        const role = msg.role === 'assistant' ? 'model' : 'user'
+        if (msg.text) {
+          contents.push({
+            role,
+            parts: [{ text: msg.text }],
+          })
+        }
+      }
+
+      // Add current user message (with optional regeneration context)
       const userPrompt = additionalContext
         ? `${userText}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
         : userText
+
+      contents.push({
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      })
 
       const MAX_RETRY = 2
       let lastErr
@@ -133,7 +163,7 @@ Comportamento accademico:
         try {
           const res = await ai.models.generateContent({
             model: 'gemini-2.5-flash-lite',
-            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            contents,
             config: {
               systemInstruction: systemInstruction,
               temperature: isTutor ? 0.75 : 0.15,
@@ -158,7 +188,7 @@ Comportamento accademico:
     }
 
     // Generazione iniziale
-    const response = await callGemini(message)
+    const response = await callGemini(message, messages)
     const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? response.text ?? ''
 
     // Parsing iniziale
@@ -197,7 +227,7 @@ Comportamento accademico:
     if (!validazione.valido && validazione.problemi?.length > 0) {
       try {
         const contestoProblemi = validazione.problemi.map((p, i) => `${i + 1}. ${p}`).join('\n')
-        const response2 = await callGemini(message, contestoProblemi)
+        const response2 = await callGemini(message, messages, contestoProblemi)
         const raw2 = response2.candidates?.[0]?.content?.parts?.[0]?.text ?? response2.text ?? ''
         try {
           const parsed2 = JSON.parse(raw2)
