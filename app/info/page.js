@@ -226,8 +226,7 @@ export default function InfoPage() {
         {/* ==================== CREDITI ==================== */}
         <Section title="Crediti">
           <p>
-            IusMente è un progetto personale di <strong>Andrea</strong>.
-            Versione corrente: <Code>v{pkg.version}</Code>.
+            IusMente è un progetto personale di <strong>Andrea</strong> · v{pkg.version}.
           </p>
           <p>
             Si basa sui modelli Gemini di Google AI, Llama di Meta via Groq Cloud,
