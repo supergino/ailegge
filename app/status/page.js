@@ -24,7 +24,7 @@ const PROVIDERS = [
   },
   {
     id: 'openrouter',
-    name: 'OpenRouter · 5 modelli',
+    name: 'OpenRouter · 4 modelli',
     role: 'Catena fallback estremo',
     docs: 'openrouter.ai',
   },
@@ -34,6 +34,7 @@ const STATUS_META = {
   available: { dot: 'bg-emerald-500', bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400' },
   quota_exhausted: { dot: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
   invalid_key: { dot: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
+  no_credits: { dot: 'bg-amber-500', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
   timeout: { dot: 'bg-amber-500', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
   error: { dot: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
   missing: { dot: 'bg-gray-400', bg: 'bg-gray-400/10', text: 'text-gray-500 dark:text-gray-400' },

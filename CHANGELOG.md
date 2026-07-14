@@ -4,7 +4,7 @@
 
 ### Aggiunto
 - NVIDIA API (`meta/llama-3.1-70b-instruct`) come fallback intermedio tra Groq e OpenRouter
-- Catena di 5 modelli OpenRouter come fallback progressivo (gemini-2.0-flash-lite → mistral-7b → phi-3 → qwen-2.5 → llama-3.2-3b)
+- Catena di 4 modelli OpenRouter come fallback progressivo (llama-3.1-8b → qwen-2.5 → llama-3.2-3b → deepseek-chat)
 - Pagina `/status` con verifica实时 stato e quota di ogni provider nella catena LLM
 - API `/api/status` che testa ogni provider con chiamate minime (1 token) e mostra limiti
 - Fallback automatico a Groq (`llama-3.1-8b-instant`) e OpenRouter quando Gemini esaurisce quota

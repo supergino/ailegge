@@ -144,11 +144,10 @@ Comportamento accademico:
       if (process.env.OPENROUTER_API_KEY) {
         const OR_BASE = { url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY }
         const OR_MODELS = [
-          'google/gemini-2.0-flash-lite-001',
-          'mistralai/mistral-7b-instruct:free',
-          'microsoft/phi-3-mini-128k-instruct:free',
-          'qwen/qwen-2.5-7b-instruct:free',
-          'meta-llama/llama-3.2-3b-instruct:free',
+          'meta-llama/llama-3.1-8b-instruct',
+          'qwen/qwen-2.5-7b-instruct',
+          'meta-llama/llama-3.2-3b-instruct',
+          'deepseek/deepseek-chat',
         ]
         for (const model of OR_MODELS) {
           endpoints.push({ name: `OpenRouter:${model}`, ...OR_BASE, model })

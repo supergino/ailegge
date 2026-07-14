@@ -115,7 +115,7 @@ async function checkOpenRouter() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-lite-001',
+        model: 'meta-llama/llama-3.1-8b-instruct',
         messages: [{ role: 'user', content: 'OK' }],
         max_tokens: 1,
       }),
@@ -143,6 +143,9 @@ async function checkOpenRouter() {
     }
     if (res.status === 401 || res.status === 403) {
       return { configured: true, status: 'invalid_key', label: 'Chiave non valida o senza permessi' }
+    }
+    if (res.status === 402) {
+      return { configured: true, status: 'no_credits', label: 'Crediti insufficienti' }
     }
     const body = await res.text()
     return { configured: true, status: 'error', label: `HTTP ${res.status}: ${body.slice(0, 80)}` }
