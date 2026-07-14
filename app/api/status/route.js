@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const GROQ_API_KEY = process.env.GROQ_API_KEY
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
-
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
+const OR_ENDPOINT = 'https://openrouter.ai/api/v1'
 
 const TIMEOUT_MS = 8000
 
@@ -21,9 +18,10 @@ const fetchWithTimeout = async (url, options, ms = TIMEOUT_MS) => {
 }
 
 async function checkGemini() {
-  if (!GEMINI_API_KEY) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
+  const key = process.env.GEMINI_API_KEY
+  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
   try {
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    const ai = new GoogleGenAI({ apiKey: key })
     const res = await ai.models.generateContent({
       model: 'gemini-2.5-flash-lite',
       contents: [{ role: 'user', parts: [{ text: 'OK' }] }],
@@ -47,12 +45,13 @@ async function checkGemini() {
 }
 
 async function checkGroq() {
-  if (!GROQ_API_KEY) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
+  const key = process.env.GROQ_API_KEY
+  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
   try {
     const res = await fetchWithTimeout(GROQ_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -89,11 +88,12 @@ async function checkGroq() {
 }
 
 async function checkOpenRouter() {
-  if (!OPENROUTER_API_KEY) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
+  const key = process.env.OPENROUTER_API_KEY
+  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
   try {
     // Auth/key endpoint gives usage stats
-    const authRes = await fetchWithTimeout('https://openrouter.ai/api/v1/auth/key', {
-      headers: { 'Authorization': `Bearer ${OPENROUTER_API_KEY}` },
+    const authRes = await fetchWithTimeout(`${OR_ENDPOINT}/auth/key`, {
+      headers: { 'Authorization': `Bearer ${key}` },
     })
 
     let usage = null
@@ -111,7 +111,7 @@ async function checkOpenRouter() {
     const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
