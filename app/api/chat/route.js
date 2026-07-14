@@ -132,6 +132,59 @@ Comportamento accademico:
 
     // Funzione che genera una risposta con Gemini (riusata per generazione e rigenerazione)
     const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+
+    // Fallback a provider alternativi (Groq → OpenRouter) quando Gemini ha quota esaurita
+    const tryFallback = async (userText, historyMessages = [], additionalContext = '') => {
+      const endpoints = []
+      if (GROQ_API_KEY) endpoints.push({ name: 'Groq', url: GROQ_ENDPOINT, key: GROQ_API_KEY, model: 'llama-3.3-70b-versatile' })
+      if (process.env.OPENROUTER_API_KEY) endpoints.push({ name: 'OpenRouter', url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY, model: 'google/gemini-2.0-flash-lite-001' })
+
+      if (endpoints.length === 0) return null
+
+      const msgs = [{ role: 'system', content: systemInstruction }]
+      for (const msg of historyMessages) {
+        const role = msg.role === 'assistant' ? 'assistant' : 'user'
+        if (msg.text) msgs.push({ role, content: msg.text })
+      }
+      const userPrompt = additionalContext
+        ? `${userText}\n\n---\nNOTA PER LA RIGENERAZIONE: il validatore ha rilevato i seguenti problemi nella tua prima risposta. Riscrivi la risposta tenendone conto e producendo lo stesso schema JSON richiesto.\n\n${additionalContext}`
+        : userText
+      msgs.push({ role: 'user', content: userPrompt })
+
+      for (const ep of endpoints) {
+        try {
+          console.log(`[IusMente/Fallback] provo ${ep.name} con ${ep.model}`)
+          const res = await fetch(ep.url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${ep.key}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: ep.model,
+              messages: msgs,
+              temperature: isTutor ? 0.75 : 0.15,
+              response_format: { type: 'json_object' },
+            }),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            const content = data?.choices?.[0]?.message?.content
+            if (content) {
+              console.log(`[IusMente/Fallback] ${ep.name} ha risposto`)
+              return { text: content, _fallbackModel: ep.name }
+            }
+          } else {
+            const errBody = await res.text()
+            console.warn(`[IusMente/Fallback] ${ep.name} errore ${res.status}: ${errBody.slice(0, 200)}`)
+          }
+        } catch (err) {
+          console.warn(`[IusMente/Fallback] ${ep.name} eccezione:`, err.message)
+        }
+      }
+      return null
+    }
+
     const callGemini = async (userText, historyMessages = [], additionalContext = '') => {
       // Build full conversation history for Gemini
       const contents = []
@@ -158,7 +211,6 @@ Comportamento accademico:
       })
 
       const MAX_RETRY = 2
-      let lastErr
       for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
         try {
           const res = await ai.models.generateContent({
@@ -174,21 +226,29 @@ Comportamento accademico:
           })
           return res
         } catch (err) {
-          lastErr = err
           const status = err?.status ?? err?.code
           const msg = String(err?.message ?? '')
           const isRetriable = status === 503 || (status === 429 && !/quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg))
-          if (!isRetriable || tentativo === MAX_RETRY) throw err
-          const delay = 800 * Math.pow(2, tentativo)
-          console.warn(`[IusMente/Gemini] tentativo ${tentativo + 1} fallito (status=${status}), riprovo tra ${delay}ms`)
-          await sleep(delay)
+          if (isRetriable && tentativo < MAX_RETRY) {
+            const delay = 800 * Math.pow(2, tentativo)
+            console.warn(`[IusMente/Gemini] tentativo ${tentativo + 1} fallito (status=${status}), riprovo tra ${delay}ms`)
+            await sleep(delay)
+            continue
+          }
+          // Quota esaurita → tenta fallback
+          const isQuota = status === 429 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)
+          if (isQuota) {
+            const fallbackResult = await tryFallback(userText, historyMessages, additionalContext)
+            if (fallbackResult) return fallbackResult
+          }
+          throw err
         }
       }
-      throw lastErr
     }
 
     // Generazione iniziale
     const response = await callGemini(message, messages)
+    const modelloGeneratore = response._fallbackModel || 'Gemini 2.5 Flash-Lite'
     const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? response.text ?? ''
 
     // Parsing iniziale
@@ -250,7 +310,7 @@ Comportamento accademico:
       modalita: isTutor ? 'tutor' : 'professore',
       fonti: fontiFinali,
       modelli: {
-        generatore: 'Gemini 2.5 Flash-Lite',
+        generatore: modelloGeneratore,
         validatore: GROQ_API_KEY ? `Groq ${GROQ_MODEL}` : 'non attivo',
         rigenerato,
       },
@@ -269,10 +329,13 @@ Comportamento accademico:
     const msg = String(error?.message ?? '')
 
     if (status === 429 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)) {
+      const haFallback = !!(GROQ_API_KEY || process.env.OPENROUTER_API_KEY)
       return NextResponse.json(
         {
           error: 'Quota esaurita',
-          detail: 'Hai superato il limite giornaliero di richieste del piano gratuito Gemini. Riprova domani o abilita la fatturazione su ai.google.dev.',
+          detail: haFallback
+            ? 'Tutti i provider di generazione hanno esaurito la quota. Riprova domani o verifica le chiavi API.'
+            : 'Hai superato il limite giornaliero di richieste del piano gratuito Gemini. Configura GROQ_API_KEY e/o OPENROUTER_API_KEY nel file .env.local per abilitare il fallback automatico, oppure riprova domani.',
         },
         { status: 429 }
       )
