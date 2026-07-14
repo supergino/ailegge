@@ -152,20 +152,57 @@ async function checkOpenRouter() {
   }
 }
 
+async function checkNvidia() {
+  const key = process.env.NVIDIA_API_KEY
+  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
+  try {
+    const res = await fetchWithTimeout('https://integrate.api.nvidia.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'meta/llama-3.1-70b-instruct',
+        messages: [{ role: 'user', content: 'OK' }],
+        max_tokens: 1,
+      }),
+    })
+
+    if (res.ok) {
+      return { configured: true, status: 'available', label: 'Disponibile' }
+    }
+
+    if (res.status === 429) {
+      return { configured: true, status: 'quota_exhausted', label: 'Quota esaurita' }
+    }
+    if (res.status === 401 || res.status === 403) {
+      return { configured: true, status: 'invalid_key', label: 'Chiave non valida' }
+    }
+    const body = await res.text()
+    return { configured: true, status: 'error', label: `HTTP ${res.status}: ${body.slice(0, 80)}` }
+  } catch (err) {
+    if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout (8s)' }
+    return { configured: true, status: 'error', label: err.message.slice(0, 80) }
+  }
+}
+
 export async function GET() {
-  const [gemini, groq, openrouter] = await Promise.all([
+  const [gemini, groq, nvidia, openrouter] = await Promise.all([
     checkGemini(),
     checkGroq(),
+    checkNvidia(),
     checkOpenRouter(),
   ])
 
-  const overall = [gemini, groq, openrouter].every(p => p.status === 'available')
+  const overall = [gemini, groq, nvidia, openrouter].every(p => p.status === 'available')
 
   return NextResponse.json({
     overall,
     providers: {
       gemini,
       groq,
+      nvidia,
       openrouter,
     },
   })

@@ -140,6 +140,7 @@ Comportamento accademico:
       const recentMessages = historyMessages.slice(-MAX_CONTEXT_MESSAGES)
       const endpoints = []
       if (GROQ_API_KEY) endpoints.push({ name: 'Groq', url: GROQ_ENDPOINT, key: GROQ_API_KEY, model: GROQ_FALLBACK_MODEL })
+      if (process.env.NVIDIA_API_KEY) endpoints.push({ name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY, model: 'meta/llama-3.1-70b-instruct' })
       if (process.env.OPENROUTER_API_KEY) {
         const OR_BASE = { url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY }
         const OR_MODELS = [

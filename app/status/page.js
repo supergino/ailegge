@@ -13,8 +13,14 @@ const PROVIDERS = [
   {
     id: 'groq',
     name: 'Groq · Llama 3.1 8B',
-    role: 'Fallback generazione',
+    role: 'Primo fallback (veloce)',
     docs: 'console.groq.com',
+  },
+  {
+    id: 'nvidia',
+    name: 'NVIDIA · Llama 3.1 70B',
+    role: 'Secondo fallback (potente)',
+    docs: 'build.nvidia.com',
   },
   {
     id: 'openrouter',
