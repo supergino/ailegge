@@ -407,13 +407,13 @@ export default function Home() {
               className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium ${border} ${
                 isDarkMode ? 'bg-white/5 text-[#a1a1a6]' : 'bg-black/[0.03] text-[#6e6e73]'
               }`}
-              title="Gemini 2.5 Flash-Lite genera · Groq Llama 3.1 8B fallback · NVIDIA Llama 3.1 70B fallback · OpenRouter ultima spiaggia"
+              title="Gemini 3.1 Flash-Lite genera · Groq Llama 3.1 8B fallback · NVIDIA Llama 3.1 70B fallback · OpenRouter ultima spiaggia"
             >
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
               </span>
-              <span><span className="font-semibold">Gemini 2.5 Flash-Lite</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· genera</span></span>
+              <span><span className="font-semibold">Gemini 3.1 Flash-Lite</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· genera</span></span>
               <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
               <span><span className="font-semibold">Groq 8B</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· fallback</span></span>
               <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>

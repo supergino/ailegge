@@ -231,7 +231,7 @@ Comportamento accademico:
       for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
         try {
           const res = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-lite',
+            model: 'gemini-3.1-flash-lite',
             contents,
             config: {
               systemInstruction: systemInstruction,
@@ -266,7 +266,7 @@ Comportamento accademico:
 
     // Generazione iniziale
     const response = await callGemini(message, messages)
-    const modelloGeneratore = response._fallbackModel || 'Gemini 2.5 Flash-Lite'
+    const modelloGeneratore = response._fallbackModel || 'Gemini 3.1 Flash-Lite'
     const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? response.text ?? ''
 
     // Parsing iniziale — resiliente a campi con nomi diversi (Gemini vs fallback Groq/OpenRouter)

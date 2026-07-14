@@ -18,6 +18,10 @@
 - Rilevamento quota rafforzato: controllo esplicito su gRPC code 8
 - Parsing risposta resiliente a nomi di campo variabili (`text`, `risposta`, `answer`, `content`, `response`)
 
+### Modificato
+- Aggiornato modello Gemini da `2.5 Flash-Lite` a `3.1 Flash-Lite` (compatibilità nuova chiave API)
+- Sostituita chiave Gemini API (nuovo account)
+
 ### Security
 - Verificato: nessuna chiave API esposta pubblicamente (`.env.local` in `.gitignore`)
 

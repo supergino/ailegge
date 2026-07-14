@@ -6,7 +6,7 @@ import Link from 'next/link'
 const PROVIDERS = [
   {
     id: 'gemini',
-    name: 'Gemini 2.5 Flash-Lite',
+    name: 'Gemini 3.1 Flash-Lite',
     role: 'Generazione primaria',
     docs: 'ai.google.dev',
   },

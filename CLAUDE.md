@@ -39,7 +39,7 @@ app/
 
 Il sistema si basa su una **pipeline a 3 stadi**:
 
-1. **Generazione** — Gemini 2.5 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
+1. **Generazione** — Gemini 3.1 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
 2. **Validazione** — Llama 3.3 70B (Groq) verifica accuratezza giuridica e allucinazioni
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto
 4. **Fallback** — Se Gemini ha quota esaurita: Groq (`llama-3.1-8b-instant`) → NVIDIA (`llama-3.1-70b-instruct`) → OpenRouter (5 modelli in catena)
