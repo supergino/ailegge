@@ -14,6 +14,8 @@
 - Rilevamento quota rafforzato: controllo esplicito su gRPC code 8
 - Parsing risposta resiliente a nomi di campo variabili (`text`, `risposta`, `answer`, `content`, `response`)
 - Catena di 5 modelli OpenRouter come fallback progressivo (gemini-2.0-flash-lite → mistral-7b → phi-3 → qwen-2.5 → llama-3.2-3b)
+- Nuova pagina /status con verifica实时 dello stato di ogni provider nella catena LLM
+- Nuova API /api/status che testa ogni provider con chiamate minime (1 token) e mostra quota/limiti
 
 ---
 Versione: v1.2.0
