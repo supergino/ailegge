@@ -140,7 +140,19 @@ Comportamento accademico:
       const recentMessages = historyMessages.slice(-MAX_CONTEXT_MESSAGES)
       const endpoints = []
       if (GROQ_API_KEY) endpoints.push({ name: 'Groq', url: GROQ_ENDPOINT, key: GROQ_API_KEY, model: GROQ_FALLBACK_MODEL })
-      if (process.env.OPENROUTER_API_KEY) endpoints.push({ name: 'OpenRouter', url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY, model: 'google/gemini-2.0-flash-lite-001' })
+      if (process.env.OPENROUTER_API_KEY) {
+        const OR_BASE = { url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY }
+        const OR_MODELS = [
+          'google/gemini-2.0-flash-lite-001',
+          'mistralai/mistral-7b-instruct:free',
+          'microsoft/phi-3-mini-128k-instruct:free',
+          'qwen/qwen-2.5-7b-instruct:free',
+          'meta-llama/llama-3.2-3b-instruct:free',
+        ]
+        for (const model of OR_MODELS) {
+          endpoints.push({ name: `OpenRouter:${model}`, ...OR_BASE, model })
+        }
+      }
 
       if (endpoints.length === 0) return null
 

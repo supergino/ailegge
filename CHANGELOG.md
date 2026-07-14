@@ -13,6 +13,7 @@
 - Validazione Groq saltata quando la risposta proviene già da un fallback
 - Rilevamento quota rafforzato: controllo esplicito su gRPC code 8
 - Parsing risposta resiliente a nomi di campo variabili (`text`, `risposta`, `answer`, `content`, `response`)
+- Catena di 5 modelli OpenRouter come fallback progressivo (gemini-2.0-flash-lite → mistral-7b → phi-3 → qwen-2.5 → llama-3.2-3b)
 
 ---
 Versione: v1.2.0
