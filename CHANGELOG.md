@@ -12,6 +12,7 @@
 - Fallback Groq usa modello leggero `llama-3.1-8b-instant` per risparmiare quota
 - Validazione Groq saltata quando la risposta proviene già da un fallback
 - Rilevamento quota rafforzato: controllo esplicito su gRPC code 8
+- Parsing risposta resiliente a nomi di campo variabili (`text`, `risposta`, `answer`, `content`, `response`)
 
 ---
 Versione: v1.2.0

@@ -257,18 +257,19 @@ Comportamento accademico:
     const modelloGeneratore = response._fallbackModel || 'Gemini 2.5 Flash-Lite'
     const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? response.text ?? ''
 
-    // Parsing iniziale
+    // Parsing iniziale — resiliente a campi con nomi diversi (Gemini vs fallback Groq/OpenRouter)
     let parsed = null
     let text = raw
     let fonti = [{ nome: 'Fonte non specificata', sito: 'normattiva.it' }]
     try {
       parsed = JSON.parse(raw)
-      if (parsed.text) text = parsed.text
-      if (Array.isArray(parsed.fonti) && parsed.fonti.length > 0) {
-        fonti = parsed.fonti
+      text = parsed.text || parsed.risposta || parsed.answer || parsed.content || parsed.response || JSON.stringify(parsed)
+      const fontiRaw = parsed.fonti || parsed.sorgenti || parsed.sources || parsed.riferimenti || []
+      if (Array.isArray(fontiRaw) && fontiRaw.length > 0) {
+        fonti = fontiRaw
       }
     } catch {
-      console.warn('Risposta Gemini non JSON, uso testo grezzo')
+      console.warn('Risposta non JSON, uso testo grezzo')
     }
     const fontiNormalizzate = normalizzaFonti(fonti)
 
@@ -300,9 +301,10 @@ Comportamento accademico:
         const raw2 = response2.candidates?.[0]?.content?.parts?.[0]?.text ?? response2.text ?? ''
         try {
           const parsed2 = JSON.parse(raw2)
-          if (parsed2.text) testoFinale = parsed2.text
-          if (Array.isArray(parsed2.fonti) && parsed2.fonti.length > 0) {
-            fontiFinali = normalizzaFonti(parsed2.fonti)
+          testoFinale = parsed2.text || parsed2.risposta || parsed2.answer || parsed2.content || parsed2.response || JSON.stringify(parsed2)
+          const fontiRaw2 = parsed2.fonti || parsed2.sorgenti || parsed2.sources || parsed2.riferimenti || []
+          if (Array.isArray(fontiRaw2) && fontiRaw2.length > 0) {
+            fontiFinali = normalizzaFonti(fontiRaw2)
           }
           rigenerato = true
           console.log('[IusMente] risposta rigenerata dopo feedback validatore')
