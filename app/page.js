@@ -230,9 +230,10 @@ export default function Home() {
     setLoading(true)
 
     try {
+      const historyContext = messages.length > 20 ? messages.slice(-20) : messages
       const data = await fetchWithRetry({
         message: userMessage,
-        messages: messages,
+        messages: historyContext,
         soloItalia,
         modalitaTutor,
         documentContext: documentContext || undefined,

@@ -11,7 +11,9 @@ const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' })
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
+const GROQ_FALLBACK_MODEL = 'llama-3.1-8b-instant'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
+const MAX_CONTEXT_MESSAGES = 20
 
 const SOURCE_RULES = `
 FONTI — OBBLIGATORIO per ogni risposta:
@@ -135,14 +137,15 @@ Comportamento accademico:
 
     // Fallback a provider alternativi (Groq → OpenRouter) quando Gemini ha quota esaurita
     const tryFallback = async (userText, historyMessages = [], additionalContext = '') => {
+      const recentMessages = historyMessages.slice(-MAX_CONTEXT_MESSAGES)
       const endpoints = []
-      if (GROQ_API_KEY) endpoints.push({ name: 'Groq', url: GROQ_ENDPOINT, key: GROQ_API_KEY, model: 'llama-3.3-70b-versatile' })
+      if (GROQ_API_KEY) endpoints.push({ name: 'Groq', url: GROQ_ENDPOINT, key: GROQ_API_KEY, model: GROQ_FALLBACK_MODEL })
       if (process.env.OPENROUTER_API_KEY) endpoints.push({ name: 'OpenRouter', url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY, model: 'google/gemini-2.0-flash-lite-001' })
 
       if (endpoints.length === 0) return null
 
       const msgs = [{ role: 'system', content: systemInstruction }]
-      for (const msg of historyMessages) {
+      for (const msg of recentMessages) {
         const role = msg.role === 'assistant' ? 'assistant' : 'user'
         if (msg.text) msgs.push({ role, content: msg.text })
       }
@@ -186,11 +189,13 @@ Comportamento accademico:
     }
 
     const callGemini = async (userText, historyMessages = [], additionalContext = '') => {
+      const recentMessages = historyMessages.slice(-MAX_CONTEXT_MESSAGES)
+
       // Build full conversation history for Gemini
       const contents = []
 
       // Add previous messages (conversation history)
-      for (const msg of historyMessages) {
+      for (const msg of recentMessages) {
         const role = msg.role === 'assistant' ? 'model' : 'user'
         if (msg.text) {
           contents.push({
@@ -228,7 +233,8 @@ Comportamento accademico:
         } catch (err) {
           const status = err?.status ?? err?.code
           const msg = String(err?.message ?? '')
-          const isRetriable = status === 503 || (status === 429 && !/quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg))
+          const isQuotaExhausted = status === 429 || status === 8 || err?.code === 8 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)
+          const isRetriable = status === 503 || (status === 429 && !isQuotaExhausted)
           if (isRetriable && tentativo < MAX_RETRY) {
             const delay = 800 * Math.pow(2, tentativo)
             console.warn(`[IusMente/Gemini] tentativo ${tentativo + 1} fallito (status=${status}), riprovo tra ${delay}ms`)
@@ -236,7 +242,7 @@ Comportamento accademico:
             continue
           }
           // Quota esaurita → tenta fallback
-          const isQuota = status === 429 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)
+          const isQuota = isQuotaExhausted
           if (isQuota) {
             const fallbackResult = await tryFallback(userText, historyMessages, additionalContext)
             if (fallbackResult) return fallbackResult
@@ -266,9 +272,12 @@ Comportamento accademico:
     }
     const fontiNormalizzate = normalizzaFonti(fonti)
 
-    // Validazione con Groq (Llama 3.3 70B)
+    // Validazione con Groq (Llama 3.3 70B) — saltata se la risposta viene già da fallback
     let validazione = { valido: true, problemi: [], testo_revisionato: null, confidenza: null, skipped: false }
-    if (GROQ_API_KEY) {
+    if (response._fallbackModel) {
+      console.log(`[IusMente/Groq] validazione saltata: risposta generata da ${response._fallbackModel}`)
+      validazione = { valido: true, problemi: [], testo_revisionato: null, confidenza: null, skipped: true }
+    } else if (GROQ_API_KEY) {
       try {
         validazione = await validaConGroq({ message, text, fonti: fontiNormalizzate, soloItalia, isTutor })
         console.log(`[IusMente/Groq] valido=${validazione.valido}, problemi=${validazione.problemi?.length || 0}, confidenza=${validazione.confidenza}`)
@@ -328,7 +337,7 @@ Comportamento accademico:
     const status = error?.status ?? error?.code
     const msg = String(error?.message ?? '')
 
-    if (status === 429 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)) {
+    if (status === 429 || status === 8 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)) {
       const haFallback = !!(GROQ_API_KEY || process.env.OPENROUTER_API_KEY)
       return NextResponse.json(
         {
