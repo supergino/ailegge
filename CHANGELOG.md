@@ -3,7 +3,11 @@
 ## [2026-07-14]
 
 ### Aggiunto
-- Fallback automatico a Groq (`llama-3.3-70b-versatile`) e OpenRouter (`google/gemini-2.0-flash-lite-001`) quando Gemini 2.5 Flash-Lite esaurisce la quota giornaliera
+- NVIDIA API (`meta/llama-3.1-70b-instruct`) come fallback intermedio tra Groq e OpenRouter
+- Catena di 5 modelli OpenRouter come fallback progressivo (gemini-2.0-flash-lite → mistral-7b → phi-3 → qwen-2.5 → llama-3.2-3b)
+- Pagina `/status` con verifica实时 stato e quota di ogni provider nella catena LLM
+- API `/api/status` che testa ogni provider con chiamate minime (1 token) e mostra limiti
+- Fallback automatico a Groq (`llama-3.1-8b-instant`) e OpenRouter quando Gemini esaurisce quota
 - Tracciamento del modello effettivamente usato nella risposta (`modelli.generatore`)
 - Messaggio di errore 429 con suggerimento per configurare chiavi di fallback
 
@@ -13,10 +17,6 @@
 - Validazione Groq saltata quando la risposta proviene già da un fallback
 - Rilevamento quota rafforzato: controllo esplicito su gRPC code 8
 - Parsing risposta resiliente a nomi di campo variabili (`text`, `risposta`, `answer`, `content`, `response`)
-- Catena di 5 modelli OpenRouter come fallback progressivo (gemini-2.0-flash-lite → mistral-7b → phi-3 → qwen-2.5 → llama-3.2-3b)
-- Nuova pagina /status con verifica实时 dello stato di ogni provider nella catena LLM
-- Nuova API /api/status che testa ogni provider con chiamate minime (1 token) e mostra quota/limiti
-- NVIDIA API (`meta/llama-3.1-70b-instruct`) come fallback intermedio tra Groq e OpenRouter
 
 ---
 Versione: v1.2.0

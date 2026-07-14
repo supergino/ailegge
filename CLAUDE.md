@@ -7,7 +7,7 @@ Guida per assistenti AI quando lavorano su questo repository.
 - **Framework:** Next.js 16 (App Router, Turbopack)
 - **Linguaggio:** JavaScript (no TypeScript)
 - **UI:** React 18, Tailwind CSS 3, Lucide React
-- **AI:** Google Gemini SDK (`@google/genai`), Groq Cloud API, OpenRouter API, Tavily Search API
+- **AI:** Google Gemini SDK (`@google/genai`), Groq Cloud API, NVIDIA API, OpenRouter API, Tavily Search API
 - **PDF:** `pdf-parse`
 
 ## Comandi
@@ -24,13 +24,15 @@ Non ci sono script di linting o test configurati al momento.
 
 ```
 app/
-├── layout.js           # Root layout (metadata, viewport, font)
-├── page.js             # Client component — chat UI completa
-├── globals.css         # Stili globali (scrollbar, glass, safe-area)
+├── layout.js              # Root layout (metadata, viewport, font)
+├── page.js                # Client component — chat UI completa
+├── globals.css            # Stili globali (scrollbar, glass, safe-area)
 ├── api/
-│   ├── chat/route.js   # POST /api/chat — pipeline AI principale
-│   └── upload/route.js # POST /api/upload — estrazione testo PDF/TXT
-└── info/page.js        # Pagina documentazione statica
+│   ├── chat/route.js      # POST /api/chat — pipeline AI principale
+│   ├── status/route.js    # GET /api/status — verifica stato provider
+│   └── upload/route.js    # POST /api/upload — estrazione testo PDF/TXT
+├── info/page.js           # Pagina documentazione statica
+└── status/page.js         # Pagina实时 stato provider
 ```
 
 ## Architettura
@@ -40,7 +42,7 @@ Il sistema si basa su una **pipeline a 3 stadi**:
 1. **Generazione** — Gemini 2.5 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
 2. **Validazione** — Llama 3.3 70B (Groq) verifica accuratezza giuridica e allucinazioni
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto
-4. **Fallback** — Se Gemini ha quota esaurita, si passa a Groq; se anche Groq è esaurito, ultima spiaggia via OpenRouter
+4. **Fallback** — Se Gemini ha quota esaurita: Groq (`llama-3.1-8b-instant`) → NVIDIA (`llama-3.1-70b-instruct`) → OpenRouter (5 modelli in catena)
 
 Opzionalmente, una ricerca RAG via Tavily su domini normativi italiani (Normattiva, Gazzetta Ufficiale, Italgiure) arricchisce il contesto prima della generazione.
 
@@ -50,6 +52,7 @@ Opzionalmente, una ricerca RAG via Tavily su domini normativi italiani (Normatti
 |---|---|---|
 | `GEMINI_API_KEY` | Google Gemini | ai.google.dev |
 | `GROQ_API_KEY` | Groq (Llama validatore) | console.groq.com |
+| `NVIDIA_API_KEY` | NVIDIA (fallback intermedio) | build.nvidia.com |
 | `TAVILY_API_KEY` | Tavily (RAG) | tavily.com |
 | `OPENROUTER_API_KEY` | OpenRouter (fallback) | openrouter.ai |
 
