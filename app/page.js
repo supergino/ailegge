@@ -21,7 +21,7 @@ import {
   FileText,
 } from 'lucide-react'
 
-const APP_VERSION = '1.3.0'
+const APP_VERSION = '1.5.0'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',

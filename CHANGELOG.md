@@ -18,5 +18,8 @@
 - Rilevamento quota rafforzato: controllo esplicito su gRPC code 8
 - Parsing risposta resiliente a nomi di campo variabili (`text`, `risposta`, `answer`, `content`, `response`)
 
+### Security
+- Verificato: nessuna chiave API esposta pubblicamente (`.env.local` in `.gitignore`)
+
 ---
-Versione: v1.2.0
+Versione: v1.5.0
