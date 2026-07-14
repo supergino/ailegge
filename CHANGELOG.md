@@ -8,4 +8,4 @@
 - Messaggio di errore 429 con suggerimento per configurare chiavi di fallback
 
 ---
-Versione: v1.1.0
+Versione: v1.2.0
