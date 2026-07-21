@@ -15,6 +15,41 @@ const GROQ_FALLBACK_MODEL = 'llama-3.1-8b-instant'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 const MAX_CONTEXT_MESSAGES = 20
 
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY
+
+async function searchTavily(query, soloItalia) {
+  if (!TAVILY_API_KEY) return null
+  const domains = soloItalia
+    ? ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it']
+    : ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it', 'eur-lex.europa.eu']
+  try {
+    const res = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        search_depth: 'advanced',
+        include_domains: domains,
+        max_results: 5,
+      }),
+    })
+    if (!res.ok) {
+      if (res.status === 429) {
+        console.warn('[IusMente/Tavily] quota API esaurita, proseguo senza RAG')
+      } else {
+        console.warn(`[IusMente/Tavily] errore ${res.status}: ${(await res.text()).slice(0, 200)}`)
+      }
+      return null
+    }
+    const data = await res.json()
+    return data.results || []
+  } catch (err) {
+    console.warn('[IusMente/Tavily] eccezione:', err.message)
+    return null
+  }
+}
+
 const SOURCE_RULES = `
 FONTI — OBBLIGATORIO per ogni risposta:
 - Identifica e elenca TUTTE le fonti giuridiche effettivamente utilizzate per formulare la risposta.
@@ -36,7 +71,15 @@ STRUTTURA di ogni fonte (oggetto JSON):
   | Trattati UE, TFUE, TUE, regolamenti/direttive UE, CGUE, CEDU| "eur-lex.europa.eu"         |
 
 - VIETATO costruire URL completi o path specifici: restituire SOLO il dominio.
-- VIETATO usare siti diversi dai quattro elencati.`
+- VIETATO usare siti diversi dai quattro elencati.
+
+FORMATTAZIONE DELLA RISPOSTA (campo "text" del JSON) — OBBLIGATORIO:
+- Ogni paragrafo separato da UNA RIGA VUOTA (doppio a capo).
+- Usa elenchi puntati con "- " per liste di concetti, elementi, requisiti.
+- Usa elenchi numerati ("1. ", "2. ", ecc.) per passaggi procedurali o sequenze.
+- **Testo in grassetto** per concetti chiave, termini tecnici, articoli di legge.
+- NON usare titoli o intestazioni di livello (# ## ###) — usa solo paragrafi e grassetto.
+- Ogni frase complessa va seguita da un a capo: non accumulare più frasi sulla stessa riga.`
 
 export async function POST(req) {
   try {
@@ -99,6 +142,19 @@ Comportamento accademico:
         : documentContext
       documentContextStr = `\n\nDocumento di riferimento caricato dall'utente — "${documentName}":\n"""${troncato}"""`
       systemInstruction += documentContextStr
+    }
+
+    // RAG: ricerca Tavily su domini normativi per arricchire il contesto
+    let tavilyUsato = false
+    if (TAVILY_API_KEY) {
+      const tavilyResults = await searchTavily(message, soloItalia)
+      if (tavilyResults && tavilyResults.length > 0) {
+        const contestoRag = tavilyResults
+          .map((r, i) => `${i + 1}. "${r.title}" — ${r.content.slice(0, 1500)}${r.content.length > 1500 ? '…' : ''} (fonte: ${r.url})`)
+          .join('\n\n')
+        systemInstruction += `\n\nRISULTATI RICERCA NORMATIVA:\n${contestoRag}`
+        tavilyUsato = true
+      }
     }
 
     // Schema condiviso per le risposte Gemini (generazione e rigenerazione)
@@ -333,6 +389,7 @@ Comportamento accademico:
       modalita: isTutor ? 'tutor' : 'professore',
       fonti: fontiFinali,
       modelli: {
+        tavily: tavilyUsato,
         generatore: modelloGeneratore,
         validatore: GROQ_API_KEY ? `Groq ${GROQ_MODEL}` : 'non attivo',
         rigenerato,

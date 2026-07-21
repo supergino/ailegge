@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-07-21]
+
+### Aggiunto
+- Implementata ricerca RAG su Tavily: query su domini normativi (Normattiva, Gazzetta Ufficiale, Italgiure, EUR-Lex) con iniezione risultati nel system prompt
+- Badge "Tavily RAG" nelle risposte chat quando la ricerca ha prodotto risultati
+- Pagina `/status` e API `/api/status`: controllo stato e quota anche per Tavily
+- Formattazione automatica risposte: elenchi puntati (`<ul>`), numerati (`<ol>`), grassetto (`<strong>`), link cliccabili
+- Istruzioni di formattazione nel system prompt per guidare l'AI a strutturare le risposte con paragrafi, liste e a capo
+- Bandierine stilizzate "ITALIA" e "UE" nei tab del Contesto Giuridico
+
+### Modificato
+- Allineamento e stile dei tab "Contesto Giuridico" con badge flag integrati
+- Versione aggiornata a v1.6.0
+
 ## [2026-07-14]
 
 ### Aggiunto
@@ -26,4 +40,4 @@
 - Verificato: nessuna chiave API esposta pubblicamente (`.env.local` in `.gitignore`)
 
 ---
-Versione: v1.5.0
+Versione: v1.6.0

@@ -28,8 +28,8 @@ app/
 ├── page.js                # Client component — chat UI completa
 ├── globals.css            # Stili globali (scrollbar, glass, safe-area)
 ├── api/
-│   ├── chat/route.js      # POST /api/chat — pipeline AI principale
-│   ├── status/route.js    # GET /api/status — verifica stato provider
+│   ├── chat/route.js      # POST /api/chat — pipeline AI principale + RAG Tavily
+│   ├── status/route.js    # GET /api/status — verifica stato provider (incluso Tavily)
 │   └── upload/route.js    # POST /api/upload — estrazione testo PDF/TXT
 ├── info/page.js           # Pagina documentazione statica
 └── status/page.js         # Pagina实时 stato provider
@@ -37,14 +37,34 @@ app/
 
 ## Architettura
 
-Il sistema si basa su una **pipeline a 3 stadi**:
+Il sistema si basa su una **pipeline a 3 stadi** preceduta da RAG opzionale:
 
+0. **RAG** — Ricerca Tavily su domini normativi (Normattiva, Gazzetta Ufficiale, Italgiure, EUR-Lex) per arricchire il contesto prima della generazione
 1. **Generazione** — Gemini 3.1 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
 2. **Validazione** — Llama 3.3 70B (Groq) verifica accuratezza giuridica e allucinazioni
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto
 4. **Fallback** — Se Gemini ha quota esaurita: Groq (`llama-3.1-8b-instant`) → NVIDIA (`llama-3.1-70b-instruct`) → OpenRouter (5 modelli in catena)
 
-Opzionalmente, una ricerca RAG via Tavily su domini normativi italiani (Normattiva, Gazzetta Ufficiale, Italgiure) arricchisce il contesto prima della generazione.
+### Risposta API
+
+Ogni risposta include:
+```json
+{
+  "text": "testo formattato (paragrafi, **grassetto**, - liste, 1. numerazioni)",
+  "modalita": "tutor|professore",
+  "fonti": [{ "nome": "...", "sito": "normattiva.it" }],
+  "modelli": {
+    "tavily": true,
+    "generatore": "Gemini 3.1 Flash-Lite",
+    "validatore": "Groq llama-3.3-70b-versatile",
+    "rigenerato": false
+  },
+  "validazione": { "eseguita": true, "valido": true, "problemi": [], "confidenza": 0.95, "skipped": false }
+}
+```
+
+- Il prompt di sistema include istruzioni di formattazione (paragrafi separati da riga vuota, `-` per liste, `1.` per numerazioni, `**grassetto**` per concetti chiave)
+- Il lato client converte la formattazione in HTML semantico (`<ul>`, `<ol>`, `<strong>`, `<p>`, link cliccabili)
 
 ### Variabili d'ambiente necessarie
 

@@ -11,6 +11,12 @@ const PROVIDERS = [
     docs: 'ai.google.dev',
   },
   {
+    id: 'tavily',
+    name: 'Tavily',
+    role: 'Ricerca RAG su domini normativi',
+    docs: 'tavily.com',
+  },
+  {
     id: 'groq',
     name: 'Groq · Llama 3.1 8B',
     role: 'Primo fallback (veloce)',

@@ -155,6 +155,39 @@ async function checkOpenRouter() {
   }
 }
 
+async function checkTavily() {
+  const key = process.env.TAVILY_API_KEY
+  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
+  try {
+    const res = await fetchWithTimeout('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: key,
+        query: 'OK',
+        search_depth: 'basic',
+        max_results: 1,
+      }),
+    })
+
+    if (res.ok) {
+      return { configured: true, status: 'available', label: 'Disponibile' }
+    }
+
+    if (res.status === 429) {
+      return { configured: true, status: 'quota_exhausted', label: 'Quota esaurita' }
+    }
+    if (res.status === 401) {
+      return { configured: true, status: 'invalid_key', label: 'Chiave non valida' }
+    }
+    const body = await res.text()
+    return { configured: true, status: 'error', label: `HTTP ${res.status}: ${body.slice(0, 80)}` }
+  } catch (err) {
+    if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout (8s)' }
+    return { configured: true, status: 'error', label: err.message.slice(0, 80) }
+  }
+}
+
 async function checkNvidia() {
   const key = process.env.NVIDIA_API_KEY
   if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
@@ -191,11 +224,12 @@ async function checkNvidia() {
 }
 
 export async function GET() {
-  const [gemini, groq, nvidia, openrouter] = await Promise.all([
+  const [gemini, groq, nvidia, openrouter, tavily] = await Promise.all([
     checkGemini(),
     checkGroq(),
     checkNvidia(),
     checkOpenRouter(),
+    checkTavily(),
   ])
 
   const overall = [gemini, groq, nvidia, openrouter].every(p => p.status === 'available')
@@ -207,6 +241,7 @@ export async function GET() {
       groq,
       nvidia,
       openrouter,
+      tavily,
     },
   })
 }

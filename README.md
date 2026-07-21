@@ -10,7 +10,7 @@ Assistente virtuale intelligente per studenti di giurisprudenza, basato su una p
 - **Filtro giurisdizionale**: scegli se limitarti al solo diritto italiano o includere UE e internazionale (TFUE, CEDU, CGUE)
 - **Pipeline anti-allucinazione**: Gemini genera la risposta JSON strutturata, Llama 3.3 70B (Groq) la valida, in caso di criticità viene rigenerata automaticamente
 - **Fallback automatico a 4 livelli**: Gemini → Groq (veloce) → NVIDIA (potente) → OpenRouter (catena 4 modelli)
-- **Ricerca RAG in tempo reale**: Tavily interroga Normattiva, Gazzetta Ufficiale e Italgiure per ancorare le risposte a fonti aggiornate
+- **Ricerca RAG su fonti normative**: Tavily interroga Normattiva, Gazzetta Ufficiale, Italgiure (e EUR-Lex) per ancorare le risposte a fonti aggiornate — indicatore visivo nella risposta quando il RAG è attivo
 - **Upload documenti**: allega file PDF o TXT (max 5 MB) per analizzarli con l'assistente
 - **Design nativo Apple**: interfaccia in vetro smerigliato, supporto safe-area per dispositivi iOS, tema chiaro/scuro
 - **Cronologia persistente**: conversazioni salvate in localStorage, riprendibili in qualsiasi momento
@@ -182,6 +182,7 @@ Genera una risposta giuridica.
   "modalita": "tutor",
   "fonti": [{ "nome": "Art. 2043 c.c.", "sito": "normattiva.it" }],
   "modelli": {
+    "tavily": true,
     "generatore": "Gemini 3.1 Flash-Lite",
     "validatore": "Groq llama-3.3-70b-versatile",
     "rigenerato": false
@@ -201,6 +202,8 @@ Il campo `modelli.generatore` cambia in base al modello effettivamente usato:
 - `"Groq"` — fallback veloce
 - `"NVIDIA"` — fallback potente
 - `"OpenRouter:meta-llama/llama-3.1-8b-instruct"` — catena estremo
+
+Il campo `modelli.tavily` (`true`/`false`) indica se la ricerca RAG ha prodotto risultati e ha arricchito il contesto della risposta.
 
 ### `GET /api/status`
 

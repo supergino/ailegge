@@ -21,7 +21,7 @@ import {
   FileText,
 } from 'lucide-react'
 
-const APP_VERSION = '1.5.0'
+const APP_VERSION = '1.6.0'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',
@@ -311,6 +311,83 @@ export default function Home() {
     </div>
   )
 
+  const inlineFormat = (text) => {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g)
+    const out = []
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i]
+      if (p.startsWith('**') && p.endsWith('**')) {
+        out.push(<strong key={i} className="font-semibold">{p.slice(2, -2)}</strong>)
+      } else if (/\[([^\]]+)\]\(([^)]+)\)/.test(p)) {
+        const html = p.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[#0071e3] hover:underline">$1</a>')
+        out.push(<span key={i} dangerouslySetInnerHTML={{ __html: html }} />)
+      } else {
+        out.push(p)
+      }
+    }
+    return out.length === 1 ? out[0] : out
+  }
+
+  const FormattaTesto = ({ testo }) => {
+    if (!testo) return null
+    const lines = testo.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+    const blocks = []
+    let i = 0
+
+    while (i < lines.length) {
+      const line = lines[i]
+
+      // Blank line
+      if (line.trim() === '') {
+        i++
+        continue
+      }
+
+      // Bullet list
+      if (/^[-*]\s/.test(line)) {
+        const items = []
+        while (i < lines.length && /^[-*]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^[-*]\s/, ''))
+          i++
+        }
+        blocks.push(<ul key={blocks.length} className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{items.map((item, j) => <li key={j} className="text-[15px] leading-relaxed">{inlineFormat(item)}</li>)}</ul>)
+        continue
+      }
+
+      // Numbered list
+      if (/^\d+[.)]\s/.test(line)) {
+        const items = []
+        while (i < lines.length && /^\d+[.)]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\d+[.)]\s/, ''))
+          i++
+        }
+        blocks.push(<ol key={blocks.length} className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{items.map((item, j) => <li key={j} className="text-[15px] leading-relaxed">{inlineFormat(item)}</li>)}</ol>)
+        continue
+      }
+
+      // Paragraph
+      const para = []
+      while (i < lines.length && lines[i].trim() !== '' && !/^[-*]\s/.test(lines[i]) && !/^\d+[.)]\s/.test(lines[i])) {
+        para.push(lines[i])
+        i++
+      }
+
+      const testoParagrafo = para.join(' ')
+
+      // Se il paragrafo è molto lungo e contiene punti, dividi in sotto-paragrafi
+      if (testoParagrafo.length > 300 && /[.;:!?]\s+[A-Z"«(]/.test(testoParagrafo)) {
+        const frasi = testoParagrafo.split(/(?<=[.;:!?])\s+(?=[A-Z"«(])/).filter(Boolean)
+        for (const frase of frasi) {
+          blocks.push(<p key={`${blocks.length}`} className="mb-2 text-[15px] leading-relaxed last:mb-0">{inlineFormat(frase)}</p>)
+        }
+      } else {
+        blocks.push(<p key={blocks.length} className="mb-2 text-[15px] leading-relaxed last:mb-0">{inlineFormat(testoParagrafo)}</p>)
+      }
+    }
+
+    return blocks.length ? <div className="space-y-2">{blocks}</div> : <p className="text-[15px] leading-relaxed">{testo}</p>
+  }
+
   const SegmentedControl = ({ options, value, onChange }) => (
     <div className={`inline-flex rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
       {options.map(opt => (
@@ -518,8 +595,14 @@ export default function Home() {
                   }`}
                 >
                   <span className="flex items-center gap-1.5">
-                    <span className="text-base leading-none" role="img" aria-label="Italia">🇮🇹</span>
-                    Solo leggi italiane
+                    <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider ${
+                      soloItalia
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#0071e3]/10 text-[#0071e3]'
+                    }`}>
+                      🇮🇹 ITALIA
+                    </span>
+                    <span>Solo leggi italiane</span>
                   </span>
                   <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${soloItalia ? 'text-white/80' : muted}`}>
                     No UE, no CEDU
@@ -535,8 +618,14 @@ export default function Home() {
                   }`}
                 >
                   <span className="flex items-center gap-1.5">
-                    <span className="text-base leading-none" role="img" aria-label="Unione Europea">🇪🇺</span>
-                    Includi UE e internazionale
+                    <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider ${
+                      !soloItalia
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#0071e3]/10 text-[#0071e3]'
+                    }`}>
+                      🇪🇺 UE
+                    </span>
+                    <span>Includi UE e internazionale</span>
                   </span>
                   <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${!soloItalia ? 'text-white/80' : muted}`}>
                     Trattati, CGUE, CEDU
@@ -629,7 +718,7 @@ export default function Home() {
                   className={`animate-fade-in flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div className={`group relative max-w-[88%] sm:max-w-[80%] ${m.role === 'user' ? bubbleUser : bubbleAi} rounded-[20px] px-4 py-3`}>
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{m.text}</p>
+                    <FormattaTesto testo={m.text} />
                     {m.role === 'assistant' && m.fonti?.length > 0 && (
                       <div className={`mt-3 border-t pt-3 ${isDarkMode ? 'border-white/10' : 'border-black/[0.06]'}`}>
                         <div className={`mb-1.5 flex items-center gap-1.5 ${muted}`}>
@@ -668,6 +757,13 @@ export default function Home() {
                     )}
                     {m.role === 'assistant' && m.modelli?.generatore && (
                       <div className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 ${muted}`}>
+                        {/* Tavily RAG */}
+                        {m.modelli.tavily && (
+                          <span className="inline-flex items-center gap-1 text-[10px] leading-tight">
+                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-violet-500" />
+                            Tavily RAG
+                          </span>
+                        )}
                         {/* Generatore */}
                         {m.modelli.generatore.includes('fallback') ? (
                           <span className="inline-flex items-center gap-1 text-[10px] leading-tight">
