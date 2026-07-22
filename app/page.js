@@ -803,12 +803,12 @@ export default function Home() {
             <div className="flex h-full flex-col px-5 pb-8 pt-4 animate-fade-in sm:items-center sm:justify-center sm:px-6 sm:pt-8">
               <div className="sm:text-center">
                 {showIntro && modalitaTutor && (
-                  <div className="mb-4 space-y-1">
-                    <p className={`text-[13px] leading-relaxed sm:text-[15px] ${muted}`}>
-                      Piattaforma AI open-source progettata per studenti di giurisprudenza, professionisti legali e chiunque voglia consultare la normativa italiana in linguaggio naturale.
+                  <div className="mb-4 space-y-2">
+                    <p className="text-[15px] font-semibold leading-snug sm:text-[17px]">
+                      Chiedi. Comprendi. Impara il diritto con l'AI.
                     </p>
                     <p className={`text-[13px] leading-relaxed sm:text-[15px] ${muted}`}>
-                      Un assistente virtuale che spiega concetti giuridici, aiuta nella preparazione degli esami e fornisce riferimenti precisi a codici e leggi italiane.
+                      AI Legge è un assistente open source che aiuta studenti, professionisti e cittadini a comprendere leggi e codici attraverso domande in linguaggio naturale. Fornisce risposte chiare, riferimenti alla normativa italiana e particolare attenzione alla precisione, limitando il rischio di informazioni non pertinenti.
                     </p>
                   </div>
                 )}
