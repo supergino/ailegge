@@ -87,6 +87,7 @@ export default function Home() {
 
   useEffect(() => {
     setSuggerite(shuffle(DOMANDE_SUGGERITE).slice(0, 3))
+    if (window.innerWidth >= 768) setContestoAperto(true)
     const visto = sessionStorage.getItem('iusmente_intro_visto')
     if (visto) setShowIntro(false)
   }, [])
@@ -344,6 +345,7 @@ export default function Home() {
       }]
       setMessages(messaggiAggiornati)
       salvaInCronologia(messaggiAggiornati)
+      if (messages.length === 0) setContestoAperto(false)
     } catch (err) {
       console.error(err)
       const detail = err?.data?.detail
@@ -675,8 +677,23 @@ export default function Home() {
 
         {/* Pannello contesto: scope giuridico + modalità */}
         <div className={`shrink-0 border-b ${border} ${surface}`}>
+          {/* Desktop: riga riepilogo quando collassato e chat attiva */}
+          {!contestoAperto && messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setContestoAperto(true)}
+              className={`hidden w-full items-center gap-2 px-4 py-2 md:flex ${isDarkMode ? 'active:bg-white/5' : 'active:bg-black/[0.02]'}`}
+            >
+              <div className="flex flex-1 items-center gap-2 overflow-hidden">
+                <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${isDarkMode ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-400' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600'}`}>{soloItalia ? '🇮🇹 Solo Italia' : '🇪🇺 Italia + UE'}</span>
+                <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${isDarkMode ? 'border-violet-500/30 bg-violet-500/15 text-violet-400' : 'border-violet-500/20 bg-violet-500/10 text-violet-600'}`}>{modalitaTutor ? '📚 Assistenza studio' : '🎓 Ufficiale'}</span>
+                <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${isDarkMode ? 'border-sky-500/30 bg-sky-500/15 text-sky-400' : 'border-sky-500/20 bg-sky-500/10 text-sky-600'}`}>{isOffline ? '💻 Locale' : '☁️ Online'}</span>
+              </div>
+              <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${muted}`} strokeWidth={2} />
+            </button>
+          )}
 
-          <div className={`${contestoAperto || 'hidden'} md:block`}>
+          <div className={`${contestoAperto || 'hidden'}`}>
             <div className="mx-auto grid max-w-5xl gap-1 px-2 py-1 sm:px-3 sm:py-1.5 md:grid-cols-3">
               {/* Gruppo 1: contesto giuridico */}
               <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
