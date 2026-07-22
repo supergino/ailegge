@@ -276,9 +276,25 @@ export default function InfoPage() {
           <p>
             IusMente è un progetto personale di <strong>Andrea</strong> · v{pkg.version}.
           </p>
-          <p>
-            Si basa sui modelli Gemini di Google AI, Llama di Meta via Groq Cloud,
-            Ollama per la modalità locale, e sulla ricerca web di Tavily.
+          <div className="mt-3 space-y-1.5">
+            <p className="flex items-center gap-2 text-[13px]">
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              Gemini 3.1 Flash-Lite — generatore primario
+            </p>
+            <p className="flex items-center gap-2 text-[13px]">
+              <span className="inline-flex h-2 w-2 rounded-full bg-violet-500" />
+              Tavily — ricerca RAG su fonti normative
+            </p>
+            <p className="flex items-center gap-2 text-[13px]">
+              <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              Groq (Llama) · NVIDIA · OpenRouter — catena fallback
+            </p>
+            <p className="flex items-center gap-2 text-[13px]">
+              <span className="inline-flex h-2 w-2 rounded-full bg-teal-500" />
+              Ollama (llama3.1:8b) — modalità offline
+            </p>
+          </div>
+          <p className="mt-3">
             Le icone sono di{' '}
             <a href="https://lucide.dev" className="text-[#0071e3] hover:underline" target="_blank" rel="noopener noreferrer">Lucide</a>.
           </p>

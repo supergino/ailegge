@@ -575,57 +575,57 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 flex-col">
 
         {/* Header — vetro smerigliato, compatto su mobile */}
-        <header className={`glass safe-top z-30 flex shrink-0 items-center gap-1 border-b px-2 py-1 sm:px-3 sm:py-1.5 ${surface} ${border}`}>
+        <header className={`glass safe-top z-30 flex shrink-0 items-center gap-1.5 border-b px-2 py-1 sm:px-3 sm:py-2 ${surface} ${border}`}>
           <Link href="/status" className="flex items-center gap-1.5 md:hidden hover:opacity-80 transition-opacity shrink-0">
-            <Scale className="h-[16px] w-[16px] text-[#0071e3]" strokeWidth={1.75} />
-            <span className="text-[13px] font-semibold tracking-tight">IusMente</span>
+            <Scale className="h-[20px] w-[20px] text-[#0071e3]" strokeWidth={1.75} />
+            <span className="text-[14px] font-semibold tracking-tight">IusMente</span>
           </Link>
 
           {/* Mobile: mode pills compatti nella header */}
           <button
             type="button"
             onClick={() => setContestoAperto(!contestoAperto)}
-            className={`ml-1 flex items-center gap-0.5 overflow-hidden md:hidden ${
+            className={`ml-1 flex items-center gap-1 overflow-hidden md:hidden ${
               isDarkMode ? 'active:opacity-60' : 'active:opacity-60'
             }`}
             aria-label="Apri impostazioni"
           >
-            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-medium leading-tight ${
+            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold leading-tight ${
               soloItalia
-                ? isDarkMode ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-500/10 text-emerald-600'
-                : isDarkMode ? 'bg-blue-500/15 text-blue-400' : 'bg-blue-500/10 text-blue-600'
+                ? isDarkMode ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-400' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600'
+                : isDarkMode ? 'border-blue-500/30 bg-blue-500/15 text-blue-400' : 'border-blue-500/20 bg-blue-500/10 text-blue-600'
             }`}>
               {soloItalia ? '🇮🇹' : '🇪🇺'}
             </span>
-            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-medium leading-tight ${
+            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold leading-tight ${
               modalitaTutor
-                ? isDarkMode ? 'bg-violet-500/15 text-violet-400' : 'bg-violet-500/10 text-violet-600'
-                : isDarkMode ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-500/10 text-amber-600'
+                ? isDarkMode ? 'border-violet-500/30 bg-violet-500/15 text-violet-400' : 'border-violet-500/20 bg-violet-500/10 text-violet-600'
+                : isDarkMode ? 'border-amber-500/30 bg-amber-500/15 text-amber-400' : 'border-amber-500/20 bg-amber-500/10 text-amber-600'
             }`}>
               {modalitaTutor ? '📚' : '🎓'}
             </span>
-            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-medium leading-tight ${
+            <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold leading-tight ${
               !isOffline
-                ? isDarkMode ? 'bg-sky-500/15 text-sky-400' : 'bg-sky-500/10 text-sky-600'
-                : isDarkMode ? 'bg-teal-500/15 text-teal-400' : 'bg-teal-500/10 text-teal-600'
+                ? isDarkMode ? 'border-sky-500/30 bg-sky-500/15 text-sky-400' : 'border-sky-500/20 bg-sky-500/10 text-sky-600'
+                : isDarkMode ? 'border-teal-500/30 bg-teal-500/15 text-teal-400' : 'border-teal-500/20 bg-teal-500/10 text-teal-600'
             }`}>
               {isOffline ? '💻' : '☁️'}
             </span>
           </button>
 
-          <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+          <div className="ml-auto flex items-center gap-1.5">
             {/* Cronologia: icona compatta su mobile, niente sidebar */}
             <button
               type="button"
               onClick={() => setCronologiaAperta(true)}
-              className={`relative flex h-7 w-7 items-center justify-center rounded-full transition-colors md:hidden ${
-                isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
+              className={`relative flex h-8 w-8 items-center justify-center rounded-xl transition-colors md:hidden ${
+                isDarkMode ? 'bg-white/8 hover:bg-white/15' : 'bg-black/[0.06] hover:bg-black/[0.1]'
               }`}
               aria-label="Apri cronologia"
             >
-              <Clock className="h-[15px] w-[15px]" strokeWidth={1.75} />
+              <Clock className="h-[18px] w-[18px]" strokeWidth={1.75} />
               {cronologia.length > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#0071e3] text-[8px] font-bold text-white">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#0071e3] text-[9px] font-bold text-white">
                   {cronologia.length > 9 ? '9+' : cronologia.length}
                 </span>
               )}
@@ -634,23 +634,23 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors md:hidden ${
-                isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
+              className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors md:hidden ${
+                isDarkMode ? 'bg-white/8 hover:bg-white/15' : 'bg-black/[0.06] hover:bg-black/[0.1]'
               }`}
               aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
             >
-              {isDarkMode ? <Sun className="h-[15px] w-[15px]" strokeWidth={1.75} /> : <Moon className="h-[15px] w-[15px]" strokeWidth={1.75} />}
+              {isDarkMode ? <Sun className="h-[18px] w-[18px]" strokeWidth={1.75} /> : <Moon className="h-[18px] w-[18px]" strokeWidth={1.75} />}
             </button>
 
             <button
               type="button"
               onClick={nuovaChat}
-              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors md:hidden ${
-                isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
+              className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors md:hidden ${
+                isDarkMode ? 'bg-white/8 hover:bg-white/15' : 'bg-black/[0.06] hover:bg-black/[0.1]'
               }`}
               aria-label="Nuova chat"
             >
-              <Plus className="h-[15px] w-[15px]" strokeWidth={2} />
+              <Plus className="h-[18px] w-[18px]" strokeWidth={2} />
             </button>
           </div>
         </header>
@@ -1018,8 +1018,8 @@ export default function Home() {
               </button>
             </div>
           </form>
-          {/* Credit + modelli */}
-          <div className={`mx-auto mt-2 inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 rounded-full px-3 py-1 text-[11px] ${isDarkMode ? 'bg-[#1d1d1f]/60' : 'bg-white/80 shadow-sm shadow-black/[0.03]'}`}>
+          {/* Credit + modelli — solo su desktop */}
+          <div className={`mx-auto mt-2 hidden md:inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 rounded-full px-3 py-1 text-[11px] ${isDarkMode ? 'bg-[#1d1d1f]/60' : 'bg-white/80 shadow-sm shadow-black/[0.03]'}`}>
             <span className={isDarkMode ? 'text-[#a1a1a6]' : 'text-[#6e6e73]'}>Realizzato da</span>
             <span
               className="inline-flex items-center gap-1 font-semibold"
