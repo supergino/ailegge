@@ -17,5 +17,14 @@ out/
 *.rtfd/
 Senza\ nome.rtfd/
 
+# Local vector store data
+.data/
+
+# Log files
+*.log
+
+# Claude AI local settings
+.claude/
+
 # Miscellaneous artifacts
 2026-06-22-145608-analizza-il-codice-ora-cerca-di-capire-errore-che.txt

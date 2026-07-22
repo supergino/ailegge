@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai'
+import { getKeywordIndex } from '../../../lib/keyword-index'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
@@ -144,9 +145,21 @@ Comportamento accademico:
       systemInstruction += documentContextStr
     }
 
-    // RAG: ricerca Tavily su domini normativi per arricchire il contesto
+    // RAG: indice keyword locale (se disponibile) → altrimenti Tavily
     let tavilyUsato = false
-    if (TAVILY_API_KEY) {
+    let indiceLocaleUsato = false
+    const kw = getKeywordIndex()
+    if (kw.size > 0) {
+      const results = kw.search(message, 8)
+      if (results.length > 0) {
+        const contestoRag = results
+          .map((r, i) => `${i + 1}. ${r.metadata?.codice ? `[${r.metadata.codice}` : ''}${r.metadata?.articolo ? `, ${r.metadata.articolo}]` : ']'} ${r.text}`)
+          .join('\n\n')
+        systemInstruction += `\n\nRISULTATI RICERCA NORMATIVA (Indice locale — Codice Civile e Penale):\n${contestoRag}`
+        indiceLocaleUsato = true
+      }
+    }
+    if (!indiceLocaleUsato && TAVILY_API_KEY) {
       const tavilyResults = await searchTavily(message, soloItalia)
       if (tavilyResults && tavilyResults.length > 0) {
         const contestoRag = tavilyResults
@@ -390,6 +403,7 @@ Comportamento accademico:
       fonti: fontiFinali,
       modelli: {
         tavily: tavilyUsato,
+        indiceLocale: indiceLocaleUsato,
         generatore: modelloGeneratore,
         validatore: GROQ_API_KEY ? `Groq ${GROQ_MODEL}` : 'non attivo',
         rigenerato,
@@ -447,8 +461,9 @@ Comportamento accademico:
         { status: 400 }
       )
     }
+    console.error('[IusMente] Errore generazione risposta:', msg.slice(0, 500))
     return NextResponse.json(
-      { error: 'Errore durante la generazione della risposta.', detail: msg.slice(0, 200) },
+      { error: 'Errore durante la generazione della risposta.', detail: 'Errore interno del server. Controlla i log per maggiori dettagli.' },
       { status: 500 }
     )
   }
