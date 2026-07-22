@@ -543,7 +543,7 @@ export default function Home() {
 
       {/* Sidebar desktop — sottile, stile Apple */}
       <aside className={`hidden md:flex md:w-[220px] md:shrink-0 md:flex-col border-r ${border} ${isDarkMode ? 'bg-[#1d1d1f]' : 'bg-[#f5f5f7]'}`}>
-        <Link href="/status" className={`flex items-center gap-2 border-b px-4 py-4 ${border} hover:opacity-80 transition-opacity`}>
+        <Link href="/info" className={`flex items-center gap-2 border-b px-4 py-4 ${border} hover:opacity-80 transition-opacity`}>
           <Scale className="h-5 w-5 text-[#0071e3]" strokeWidth={1.75} />
           <span className="text-[15px] font-semibold tracking-tight">IusMente</span>
         </Link>
@@ -586,7 +586,7 @@ export default function Home() {
 
         {/* Header — vetro smerigliato, compatto su mobile */}
         <header className={`glass safe-top z-30 flex shrink-0 items-center gap-1.5 border-b px-2 py-1 sm:px-3 sm:py-2 ${surface} ${border}`}>
-          <Link href="/status" className="flex items-center gap-1.5 md:hidden hover:opacity-80 transition-opacity shrink-0">
+          <Link href="/info" className="flex items-center gap-1.5 md:hidden hover:opacity-80 transition-opacity shrink-0">
             <Scale className="h-[20px] w-[20px] text-[#0071e3]" strokeWidth={1.75} />
             <span className="text-[14px] font-semibold tracking-tight">IusMente</span>
           </Link>
