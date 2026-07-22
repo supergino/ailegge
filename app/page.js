@@ -575,25 +575,57 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 flex-col">
 
         {/* Header — vetro smerigliato, compatto su mobile */}
-        <header className={`glass safe-top z-30 flex shrink-0 items-center gap-2 border-b px-2 py-1.5 sm:px-3 sm:py-2 ${surface} ${border}`}>
-          <Link href="/status" className="flex items-center gap-2 md:hidden hover:opacity-80 transition-opacity">
-            <Scale className="h-[18px] w-[18px] text-[#0071e3]" strokeWidth={1.75} />
-            <span className="text-[15px] font-semibold tracking-tight">IusMente</span>
+        <header className={`glass safe-top z-30 flex shrink-0 items-center gap-1 border-b px-2 py-1 sm:px-3 sm:py-1.5 ${surface} ${border}`}>
+          <Link href="/status" className="flex items-center gap-1.5 md:hidden hover:opacity-80 transition-opacity shrink-0">
+            <Scale className="h-[16px] w-[16px] text-[#0071e3]" strokeWidth={1.75} />
+            <span className="text-[13px] font-semibold tracking-tight">IusMente</span>
           </Link>
 
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          {/* Mobile: mode pills compatti nella header */}
+          <button
+            type="button"
+            onClick={() => setContestoAperto(!contestoAperto)}
+            className={`ml-1 flex items-center gap-0.5 overflow-hidden md:hidden ${
+              isDarkMode ? 'active:opacity-60' : 'active:opacity-60'
+            }`}
+            aria-label="Apri impostazioni"
+          >
+            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-medium leading-tight ${
+              soloItalia
+                ? isDarkMode ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-500/10 text-emerald-600'
+                : isDarkMode ? 'bg-blue-500/15 text-blue-400' : 'bg-blue-500/10 text-blue-600'
+            }`}>
+              {soloItalia ? '🇮🇹' : '🇪🇺'}
+            </span>
+            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-medium leading-tight ${
+              modalitaTutor
+                ? isDarkMode ? 'bg-violet-500/15 text-violet-400' : 'bg-violet-500/10 text-violet-600'
+                : isDarkMode ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-500/10 text-amber-600'
+            }`}>
+              {modalitaTutor ? '📚' : '🎓'}
+            </span>
+            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-medium leading-tight ${
+              !isOffline
+                ? isDarkMode ? 'bg-sky-500/15 text-sky-400' : 'bg-sky-500/10 text-sky-600'
+                : isDarkMode ? 'bg-teal-500/15 text-teal-400' : 'bg-teal-500/10 text-teal-600'
+            }`}>
+              {isOffline ? '💻' : '☁️'}
+            </span>
+          </button>
+
+          <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
             {/* Cronologia: icona compatta su mobile, niente sidebar */}
             <button
               type="button"
               onClick={() => setCronologiaAperta(true)}
-              className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-colors md:hidden ${
+              className={`relative flex h-7 w-7 items-center justify-center rounded-full transition-colors md:hidden ${
                 isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
               }`}
               aria-label="Apri cronologia"
             >
-              <Clock className="h-[17px] w-[17px]" strokeWidth={1.75} />
+              <Clock className="h-[15px] w-[15px]" strokeWidth={1.75} />
               {cronologia.length > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#0071e3] text-[9px] font-bold text-white">
+                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#0071e3] text-[8px] font-bold text-white">
                   {cronologia.length > 9 ? '9+' : cronologia.length}
                 </span>
               )}
@@ -602,47 +634,29 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors md:hidden ${
+              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors md:hidden ${
                 isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
               }`}
               aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
             >
-              {isDarkMode ? <Sun className="h-[17px] w-[17px]" strokeWidth={1.75} /> : <Moon className="h-[17px] w-[17px]" strokeWidth={1.75} />}
+              {isDarkMode ? <Sun className="h-[15px] w-[15px]" strokeWidth={1.75} /> : <Moon className="h-[15px] w-[15px]" strokeWidth={1.75} />}
             </button>
 
             <button
               type="button"
               onClick={nuovaChat}
-              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors md:hidden ${
+              className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors md:hidden ${
                 isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
               }`}
               aria-label="Nuova chat"
             >
-              <Plus className="h-[17px] w-[17px]" strokeWidth={2} />
+              <Plus className="h-[15px] w-[15px]" strokeWidth={2} />
             </button>
           </div>
         </header>
 
         {/* Pannello contesto: scope giuridico + modalità */}
         <div className={`shrink-0 border-b ${border} ${surface}`}>
-          {/* Mobile: riga compatta con riepilogo + toggle */}
-          <button
-            type="button"
-            onClick={() => setContestoAperto(!contestoAperto)}
-            className={`flex w-full items-center gap-2 px-3 py-2 md:hidden ${isDarkMode ? 'active:bg-white/5' : 'active:bg-black/[0.02]'}`}
-          >
-            <div className="flex flex-1 items-center gap-2 overflow-hidden">
-              <Globe className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" strokeWidth={1.75} />
-              <span className={`truncate text-[12px] font-medium ${soloItalia ? '' : 'text-[#0071e3]'}`}>{soloItalia ? '🇮🇹 Solo Italia' : '🇪🇺 Italia + UE'}</span>
-              <span className={`${isDarkMode ? 'text-white/15' : 'text-black/15'}`}>·</span>
-              <Gavel className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" strokeWidth={1.75} />
-              <span className={`truncate text-[12px] font-medium ${modalitaTutor ? '' : 'text-[#0071e3]'}`}>{modalitaTutor ? 'Assistenza studio' : 'Ufficiale'}</span>
-              <span className={`${isDarkMode ? 'text-white/15' : 'text-black/15'}`}>·</span>
-              <Cpu className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" strokeWidth={1.75} />
-              <span className={`truncate text-[12px] font-medium ${isOffline ? 'text-[#0071e3]' : ''}`}>{isOffline ? 'Locale' : 'Online'}</span>
-            </div>
-            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${muted} ${contestoAperto ? 'rotate-180' : ''}`} strokeWidth={2} />
-          </button>
 
           <div className={`${contestoAperto || 'hidden'} md:block`}>
             <div className="mx-auto grid max-w-5xl gap-1 px-2 py-1 sm:px-3 sm:py-1.5 md:grid-cols-3">
