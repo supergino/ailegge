@@ -4,7 +4,7 @@ import { getKeywordIndex } from '../../../lib/keyword-index'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
-  console.error('GEMINI_API_KEY mancante nelle variabili d\'ambiente')
+  console.error('GEMINI_API_KEY mancantde nelle variabili d\'ambiente')
 }
 
 
@@ -461,9 +461,8 @@ Comportamento accademico:
         { status: 400 }
       )
     }
-    console.error('[IusMente] Errore generazione risposta:', msg.slice(0, 500))
     return NextResponse.json(
-      { error: 'Errore durante la generazione della risposta.', detail: 'Errore interno del server. Controlla i log per maggiori dettagli.' },
+      { error: 'Errore durante la generazione della risposta.', detail: msg.slice(0, 200) },
       { status: 500 }
     )
   }
