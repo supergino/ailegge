@@ -790,23 +790,30 @@ export default function Home() {
         {/* Chat */}
         <main className="flex-1 overflow-y-auto overscroll-contain">
           {messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center px-6 pb-8 pt-4 animate-fade-in">
-              <div className="flex items-center gap-3 text-center">
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] ${
-                  isDarkMode ? 'bg-[#1d1d1f]' : 'bg-white shadow-lg shadow-black/[0.06]'
-                }`}>
-                  <Scale className="h-5 w-5 text-[#0071e3]" strokeWidth={1.5} />
+            <div className="flex h-full flex-col px-5 pb-8 pt-4 animate-fade-in sm:items-center sm:justify-center sm:px-6 sm:pt-8">
+              <div className="sm:text-center">
+                <div className="flex items-center gap-3 sm:justify-center">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] sm:h-10 sm:w-10 sm:rounded-[14px] ${
+                    isDarkMode ? 'bg-[#1d1d1f]' : 'bg-white shadow-lg shadow-black/[0.06]'
+                  }`}>
+                    <Scale className="h-[18px] w-[18px] text-[#0071e3] sm:h-5 sm:w-5" strokeWidth={1.5} />
+                  </div>
+                  <h2 className="text-[20px] font-semibold tracking-tight sm:text-[26px]">
+                    {modalitaTutor ? 'Assistenza studio' : 'Ambito ufficiale legislativo'}
+                  </h2>
                 </div>
-                <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">
-                  {modalitaTutor ? 'Assistenza studio' : 'Ambito ufficiale legislativo'}
-                </h2>
+                <p className={`mt-2 max-w-sm text-[13px] leading-relaxed sm:mx-auto sm:text-[15px] ${muted}`}>
+                  {modalitaTutor
+                    ? 'Piattaforma AI open-source progettata per studenti di giurisprudenza, professionisti legali e chiunque voglia consultare la normativa italiana in linguaggio naturale.'
+                    : 'Risposte formali e rigorose, come davanti alla commissione.'}
+                </p>
+                {modalitaTutor && (
+                  <p className={`mt-1 max-w-sm text-[13px] leading-relaxed sm:mx-auto sm:text-[15px] ${muted}`}>
+                    Un assistente virtuale che spiega concetti giuridici, aiuta nella preparazione degli esami e fornisce riferimenti precisi a codici e leggi italiane.
+                  </p>
+                )}
               </div>
-              <p className={`mt-2 max-w-sm text-[14px] leading-relaxed sm:text-[15px] ${muted}`}>
-                {modalitaTutor
-                  ? 'Spiegazioni, quiz e simulazioni per prepararti agli esami.'
-                  : 'Risposte formali e rigorose, come davanti alla commissione.'}
-              </p>
-              <div className={`mt-6 flex flex-wrap justify-center gap-2`}>
+              <div className={`mt-5 flex flex-wrap gap-2 sm:justify-center`}>
                 {suggerite.map(suggerimento => (
                   <button
                     key={suggerimento}
