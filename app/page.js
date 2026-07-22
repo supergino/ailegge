@@ -663,32 +663,32 @@ export default function Home() {
               {/* Gruppo 1: contesto giuridico */}
               <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
                 <div className="mb-0.5 flex items-center gap-1.5">
-                  <Globe className="h-3 w-3 text-[#0071e3]" strokeWidth={1.75} />
-                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Contesto</span>
-                  <a href="/info#contesto" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`} aria-label="Info contesto" title="Ambito normativo di riferimento"><HelpCircle className="h-3 w-3" strokeWidth={2.5} /></a>
+                  <Globe className="h-3.5 w-3.5 text-[#0071e3]" strokeWidth={1.75} />
+                  <span className={`text-[12px] font-semibold uppercase tracking-wider ${muted}`}>Contesto</span>
+                    <a href="/info#contesto" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`} aria-label="Info contesto" title="Ambito normativo di riferimento"><HelpCircle className="h-3.5 w-3.5" strokeWidth={2.5} /></a>
                 </div>
                 <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
                   <button
                     type="button"
                     onClick={() => setSoloItalia(true)}
-                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${soloItalia ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-all ${soloItalia ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[8px] font-bold uppercase leading-none tracking-wider ${soloItalia ? 'bg-white/20 text-white' : 'bg-[#0071e3]/10 text-[#0071e3]'}`}>🇮🇹 ITALIA</span>
+                      <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wider ${soloItalia ? 'bg-white/20 text-white' : 'bg-[#0071e3]/10 text-[#0071e3]'}`}>🇮🇹 ITALIA</span>
                       <span>Solo leggi italiane</span>
                     </span>
-                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${soloItalia ? 'text-white/80' : muted}`}>No UE, no CEDU</span>
+                    <span className={`mt-0.5 block text-[11px] font-normal leading-snug ${soloItalia ? 'text-white/80' : muted}`}>No UE, no CEDU</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSoloItalia(false)}
-                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${!soloItalia ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-all ${!soloItalia ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[8px] font-bold uppercase leading-none tracking-wider ${!soloItalia ? 'bg-white/20 text-white' : 'bg-[#0071e3]/10 text-[#0071e3]'}`}>🇪🇺 UE</span>
+                      <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wider ${!soloItalia ? 'bg-white/20 text-white' : 'bg-[#0071e3]/10 text-[#0071e3]'}`}>🇪🇺 UE</span>
                       <span>Includi UE e internazionale</span>
                     </span>
-                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${!soloItalia ? 'text-white/80' : muted}`}>Trattati, CGUE, CEDU</span>
+                    <span className={`mt-0.5 block text-[11px] font-normal leading-snug ${!soloItalia ? 'text-white/80' : muted}`}>Trattati, CGUE, CEDU</span>
                   </button>
                 </div>
               </div>
@@ -696,26 +696,26 @@ export default function Home() {
               {/* Gruppo 2: modalità risposta */}
               <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
                 <div className="mb-0.5 flex items-center gap-1.5">
-                  <Gavel className="h-3 w-3 text-[#0071e3]" strokeWidth={1.75} />
-                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Risposta</span>
-                  <a href="/info#risposta" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`} aria-label="Info risposta" title="Modalità di spiegazione delle risposte"><HelpCircle className="h-3 w-3" strokeWidth={2.5} /></a>
+                  <Gavel className="h-3.5 w-3.5 text-[#0071e3]" strokeWidth={1.75} />
+                  <span className={`text-[12px] font-semibold uppercase tracking-wider ${muted}`}>Risposta</span>
+                  <a href="/info#risposta" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`} aria-label="Info risposta" title="Modalità di spiegazione delle risposte"><HelpCircle className="h-3.5 w-3.5" strokeWidth={2.5} /></a>
                 </div>
                 <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
                   <button
                     type="button"
                     onClick={() => setModalitaTutor(true)}
-                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${modalitaTutor ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-all ${modalitaTutor ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
                   >
                     Assistenza studio
-                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${modalitaTutor ? 'text-white/80' : muted}`}>Spiegazioni, quiz, simulazioni</span>
+                    <span className={`mt-0.5 block text-[11px] font-normal leading-snug ${modalitaTutor ? 'text-white/80' : muted}`}>Spiegazioni, quiz, simulazioni</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setModalitaTutor(false)}
-                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${!modalitaTutor ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-all ${!modalitaTutor ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
                   >
                     Ambito ufficiale legislativo
-                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${!modalitaTutor ? 'text-white/80' : muted}`}>Come in commissione d'esame</span>
+                    <span className={`mt-0.5 block text-[11px] font-normal leading-snug ${!modalitaTutor ? 'text-white/80' : muted}`}>Come in commissione d'esame</span>
                   </button>
                 </div>
               </div>
@@ -723,56 +723,56 @@ export default function Home() {
               {/* Gruppo 3: elaborazione */}
               <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
                 <div className="mb-0.5 flex items-center gap-1.5">
-                  <Cpu className="h-3 w-3 text-[#0071e3]" strokeWidth={1.75} />
-                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>
-                    Elaborazione <span className="ml-1 rounded-md bg-amber-500/15 px-1 py-0.5 text-[8px] font-bold text-amber-500">BETA</span>
+                  <Cpu className="h-3.5 w-3.5 text-[#0071e3]" strokeWidth={1.75} />
+                  <span className={`text-[12px] font-semibold uppercase tracking-wider ${muted}`}>
+                    Elaborazione <span className="ml-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500">BETA</span>
                   </span>
                   <a href="/info#elaborazione" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`}
                     aria-label="Info modalità" title="Confronto Online vs Locale">
-                    <HelpCircle className="h-3 w-3" strokeWidth={2.5} />
+                    <HelpCircle className="h-3.5 w-3.5" strokeWidth={2.5} />
                   </a>
                 </div>
                 <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
                   <button
                     type="button"
                     onClick={() => setIsOffline(false)}
-                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${!isOffline ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-all ${!isOffline ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <Globe className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+                      <Globe className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
                       <span>Online</span>
                     </span>
-                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${!isOffline ? 'text-white/80' : muted}`}>{keywordInfo ? 'Indice locale + Gemini' : 'API cloud (Gemini, Tavily)'}</span>
+                    <span className={`mt-0.5 block text-[11px] font-normal leading-snug ${!isOffline ? 'text-white/80' : muted}`}>{keywordInfo ? 'Indice locale + Gemini' : 'API cloud (Gemini, Tavily)'}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsOffline(true)}
-                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${isOffline ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                    className={`flex-1 rounded-md px-2 py-1.5 text-left text-[13px] font-medium transition-all ${isOffline ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <Cpu className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+                      <Cpu className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
                       <span>Locale</span>
                     </span>
-                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${isOffline ? 'text-white/80' : muted}`}>{vectorInfo ? 'Ollama + DB vettoriale' : 'Ollama offline'}</span>
+                    <span className={`mt-0.5 block text-[11px] font-normal leading-snug ${isOffline ? 'text-white/80' : muted}`}>{vectorInfo ? 'Ollama + DB vettoriale' : 'Ollama offline'}</span>
                   </button>
                 </div>
                 {setupStatus === 'downloading' ? (
-                  <div className="mt-1.5">
-                    <div className="flex items-center justify-between text-[10px]"><span className={`truncate ${muted}`}>{setupMessage}</span>{setupProgress.total > 0 && <span className={`shrink-0 font-medium ${isDarkMode ? 'text-white/70' : 'text-black/60'}`}>{setupProgress.current}/{setupProgress.total}</span>}</div>
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-[12px]"><span className={`truncate ${muted}`}>{setupMessage}</span>{setupProgress.total > 0 && <span className={`shrink-0 font-medium ${isDarkMode ? 'text-white/70' : 'text-black/60'}`}>{setupProgress.current}/{setupProgress.total}</span>}</div>
                     <div className={`mt-0.5 h-0.5 w-full overflow-hidden rounded-full ${isDarkMode ? 'bg-white/10' : 'bg-black/[0.06]'}`}><div className="h-full rounded-full bg-[#0071e3] transition-all duration-300" style={{ width: setupProgress.total > 0 ? `${(setupProgress.current / setupProgress.total) * 100}%` : '5%' }} /></div>
                   </div>
                 ) : setupStatus === 'error' ? (
-                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-red-500"><AlertCircle className="h-2.5 w-2.5 shrink-0" strokeWidth={2} /><span className="truncate leading-tight">{setupMessage}</span><button type="button" onClick={handleSetup} className="ml-auto shrink-0 rounded-md bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-500 hover:bg-red-500/25">Riprova</button></div>
+                  <div className="mt-2 flex items-center gap-1.5 text-[12px] text-red-500"><AlertCircle className="h-3 w-3 shrink-0" strokeWidth={2} /><span className="truncate leading-tight">{setupMessage}</span><button type="button" onClick={handleSetup} className="ml-auto shrink-0 rounded-md bg-red-500/15 px-2 py-1 text-[12px] font-medium text-red-500 hover:bg-red-500/25">Riprova</button></div>
                 ) : keywordInfo || vectorInfo ? (
-                  <div className="mt-1.5 space-y-0.5">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]">
+                  <div className="mt-2 space-y-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
                       <span className={muted}>📖 {keywordInfo?.totale || vectorInfo?.totale} chunk</span>
                       {keywordInfo?.downloadedAt && <span className={muted}>{formatDate(keywordInfo.downloadedAt)}</span>}
                       {keywordInfo?.downloadedAt && isOlderThan(keywordInfo.downloadedAt, 90) && <span className="text-amber-500">⚠️</span>}
                       {confirmDelete ? (
                         <span className="ml-auto flex gap-1">
-                          <button type="button" onClick={handleDelete} className="rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white hover:bg-red-600">Conferma</button>
-                          <button type="button" onClick={() => setConfirmDelete(false)} className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${isDarkMode ? 'border border-white/20 text-white/70 hover:bg-white/10' : 'border border-black/[0.12] text-black/60 hover:bg-black/[0.04]'}`}>No</button>
+                          <button type="button" onClick={handleDelete} className="rounded bg-red-500 px-2 py-1 text-[12px] font-medium text-white hover:bg-red-600">Conferma</button>
+                          <button type="button" onClick={() => setConfirmDelete(false)} className={`rounded px-2 py-1 text-[12px] font-medium ${isDarkMode ? 'border border-white/20 text-white/70 hover:bg-white/10' : 'border border-black/[0.12] text-black/60 hover:bg-black/[0.04]'}`}>No</button>
                         </span>
                       ) : (
                         <button type="button" onClick={() => setConfirmDelete(true)} className="ml-auto inline-flex items-center gap-1 text-red-400 hover:text-red-500"><span>Elimina</span>✕</button>
@@ -780,7 +780,7 @@ export default function Home() {
                     </div>
                   </div>
                 ) : (
-                  <button type="button" onClick={handleSetup} className="mt-1.5 w-full rounded bg-[#0071e3] py-1 text-[11px] font-medium text-white hover:bg-[#0077ed]">Scarica codici</button>
+                  <button type="button" onClick={handleSetup} className="mt-2 w-full rounded-lg bg-[#0071e3] py-2 text-[13px] font-medium text-white hover:bg-[#0077ed]">Scarica codici</button>
                 )}
               </div>
             </div>
