@@ -694,6 +694,19 @@ export default function Home() {
           )}
 
           <div className={`${contestoAperto || 'hidden'}`}>
+            <div className="mx-auto flex max-w-5xl items-center justify-end gap-1 px-2 pt-1 sm:px-3">
+              <button
+                type="button"
+                onClick={() => setContestoAperto(false)}
+                className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors md:flex ${
+                  isDarkMode ? 'text-[#86868b] hover:bg-white/10' : 'text-[#6e6e73] hover:bg-black/[0.06]'
+                }`}
+                aria-label="Comprimi pannello"
+                title="Comprimi"
+              >
+                <ChevronDown className="h-4 w-4 rotate-180" strokeWidth={2} />
+              </button>
+            </div>
             <div className="mx-auto grid max-w-5xl gap-1 px-2 py-1 sm:px-3 sm:py-1.5 md:grid-cols-3">
               {/* Gruppo 1: contesto giuridico */}
               <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
