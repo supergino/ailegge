@@ -83,10 +83,20 @@ export default function Home() {
   const [ollamaStatus, setOllamaStatus] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [contestoAperto, setContestoAperto] = useState(false)
+  const [showIntro, setShowIntro] = useState(true)
 
   useEffect(() => {
     setSuggerite(shuffle(DOMANDE_SUGGERITE).slice(0, 3))
+    const visto = sessionStorage.getItem('iusmente_intro_visto')
+    if (visto) setShowIntro(false)
   }, [])
+
+  useEffect(() => {
+    if (messages.length > 0 && showIntro) {
+      setShowIntro(false)
+      sessionStorage.setItem('iusmente_intro_visto', '1')
+    }
+  }, [messages, showIntro])
 
   useEffect(() => {
     fetch('/api/setup-locale?check=1')
@@ -792,6 +802,16 @@ export default function Home() {
           {messages.length === 0 ? (
             <div className="flex h-full flex-col px-5 pb-8 pt-4 animate-fade-in sm:items-center sm:justify-center sm:px-6 sm:pt-8">
               <div className="sm:text-center">
+                {showIntro && modalitaTutor && (
+                  <div className="mb-4 space-y-1">
+                    <p className={`text-[13px] leading-relaxed sm:text-[15px] ${muted}`}>
+                      Piattaforma AI open-source progettata per studenti di giurisprudenza, professionisti legali e chiunque voglia consultare la normativa italiana in linguaggio naturale.
+                    </p>
+                    <p className={`text-[13px] leading-relaxed sm:text-[15px] ${muted}`}>
+                      Un assistente virtuale che spiega concetti giuridici, aiuta nella preparazione degli esami e fornisce riferimenti precisi a codici e leggi italiane.
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 sm:justify-center">
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] sm:h-10 sm:w-10 sm:rounded-[14px] ${
                     isDarkMode ? 'bg-[#1d1d1f]' : 'bg-white shadow-lg shadow-black/[0.06]'
@@ -804,16 +824,14 @@ export default function Home() {
                 </div>
                 <p className={`mt-2 max-w-sm text-[13px] leading-relaxed sm:mx-auto sm:text-[15px] ${muted}`}>
                   {modalitaTutor
-                    ? 'Piattaforma AI open-source progettata per studenti di giurisprudenza, professionisti legali e chiunque voglia consultare la normativa italiana in linguaggio naturale.'
+                    ? 'Spiegazioni, quiz e simulazioni per prepararti agli esami.'
                     : 'Risposte formali e rigorose, come davanti alla commissione.'}
                 </p>
-                {modalitaTutor && (
-                  <p className={`mt-1 max-w-sm text-[13px] leading-relaxed sm:mx-auto sm:text-[15px] ${muted}`}>
-                    Un assistente virtuale che spiega concetti giuridici, aiuta nella preparazione degli esami e fornisce riferimenti precisi a codici e leggi italiane.
-                  </p>
-                )}
               </div>
-              <div className={`mt-5 flex flex-wrap gap-2 sm:justify-center`}>
+              {suggerite.length > 0 && (
+                <p className={`mt-6 text-[13px] font-medium sm:text-center ${muted}`}>Ad esempio chiedi:</p>
+              )}
+              <div className={`mt-3 flex flex-wrap gap-2 sm:justify-center`}>
                 {suggerite.map(suggerimento => (
                   <button
                     key={suggerimento}
