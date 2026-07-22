@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026-07-22]
+
+### Aggiunto
+- **Pannello contesto collassabile su mobile**: riga compatta con riepilogo delle 3 modalità attive (Contesto, Risposta, Elaborazione) e freccia per espandere/chiudere
+- **Anchor HTML nella pagina `/info`**: i pulsantini `?` nei tab contesto/risposta/elaborazione ora linkano direttamente alla sezione corrispondente (`/info#contesto`, `/info#risposta`, `/info#elaborazione`)
+- **Deep linking Normattiva**: i link alle fonti `normattiva.it` ora puntano direttamente all'articolo specifico via URN (`uri-res/N2Ls?urn=...`) invece che alla homepage — supportati Codice Civile, Penale e Costituzione
+- Pulsante "Elimina" in rosso accanto alla `✕` per eliminazione dati codici
+- `ChevronDown` nel pannello contesto mobile per indicare espandibilità
+
+### Modificato
+- **Badge modelli spostati dal header al footer**: la riga con Tavily, Gemini, Groq, NVIDIA, OpenRouter non è più nell'header ma nel footer accanto alla versione, visibile solo su desktop
+- **Pulsante tema chiaro/scuro**: rimosso dall'header desktop (era duplicato della sidebar), lasciato solo su mobile
+- **Header più compatto**: padding ridotto (`px-2 py-1.5` invece di `px-3 py-2.5`)
+- **Pannello contesto più compatto**: padding ridotto (`gap-1 px-2 py-1` invece di `gap-1.5 px-3 py-1.5`)
+- **Empty state più compatto**: logo spostato inline con il titolo, dimensioni ridotte
+- **Pulsantini info `?`**: sostituiti `Info` icon con `HelpCircle` su sfondo blu semitrasparente (`h-5 w-5`) per maggiore visibilità
+- **Sidebar toggle**: testo cambiato da "Chiaro"/"Scuro" a "Tema chiaro"/"Tema scuro"
+- **Header mobile**: barra "Domande/Cronologia" spostata fuori dal flex header per evitare layout rotti
+- Versione aggiornata a v1.9.0
+
 ## [2026-07-21]
 
 ### Aggiunto
@@ -9,10 +29,26 @@
 - Formattazione automatica risposte: elenchi puntati (`<ul>`), numerati (`<ol>`), grassetto (`<strong>`), link cliccabili
 - Istruzioni di formattazione nel system prompt per guidare l'AI a strutturare le risposte con paragrafi, liste e a capo
 - Bandierine stilizzate "ITALIA" e "UE" nei tab del Contesto Giuridico
+- **Indice keyword locale**: scarica Codice Civile e Penale da Normattiva, indicizzazione TF-IDF zero-dipendenze (`.data/keyword-index.json`)
+- **Indice vettoriale locale** (opzionale): embeddings Ollama per ricerca semantica (`.data/vector-index.json`)
+- **Modalità elaborazione**: toggle Online/Locale nelle impostazioni
+- **Online con indice locale**: Gemini + keyword index locale — niente chiamate Tavily per domande sui codici
+- **Locale (Ollama)**: generazione e ricerca completamente offline
+- **Fallback Ollama→Gemini**: se Ollama non è in esecuzione, la modalità Locale usa Gemini con l'indice locale
+- **API `/api/chat-locale`**: endpoint per la modalità locale
+- **API `/api/setup-locale`**: download e indicizzazione dei codici con SSE progress bar
+- **API `DELETE /api/setup-locale`**: elimina tutti i dati locali
+- **Pulsante "Scarica e indicizza codici"**: download one-click da Normattiva con progress bar
+- **Badge "Indice locale"** nelle risposte chat quando il RAG locale è attivo
+- Pulsante "Elimina dati codici" con conferma
+- Badge `BETA` su "Modalità elaborazione"
 
 ### Modificato
 - Allineamento e stile dei tab "Contesto Giuridico" con badge flag integrati
-- Versione aggiornata a v1.6.0
+- `/api/chat` ora usa l'indice keyword locale come RAG prioritario prima di Tavily
+- Messaggio d'errore chiaro quando l'indice locale è vuoto (non più "Vai su Modalità locale" fuorviante)
+- `.gitignore` ora include `.data/`
+- Versione aggiornata a v1.7.0
 
 ## [2026-07-14]
 
@@ -40,4 +76,4 @@
 - Verificato: nessuna chiave API esposta pubblicamente (`.env.local` in `.gitignore`)
 
 ---
-Versione: v1.6.0
+Versione: v1.9.0

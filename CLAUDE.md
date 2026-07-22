@@ -7,8 +7,9 @@ Guida per assistenti AI quando lavorano su questo repository.
 - **Framework:** Next.js 16 (App Router, Turbopack)
 - **Linguaggio:** JavaScript (no TypeScript)
 - **UI:** React 18, Tailwind CSS 3, Lucide React
-- **AI:** Google Gemini SDK (`@google/genai`), Groq Cloud API, NVIDIA API, OpenRouter API, Tavily Search API
+- **AI:** Google Gemini SDK (`@google/genai`), Groq Cloud API, NVIDIA API, OpenRouter API, Tavily Search API, Ollama (locale)
 - **PDF:** `pdf-parse`
+- **Indice locale:** Keyword index TF-IDF (zero dipendenze) + Vector store opzionale (Ollama embeddings)
 
 ## Comandi
 
@@ -28,7 +29,11 @@ app/
 ├── page.js                # Client component — chat UI completa
 ├── globals.css            # Stili globali (scrollbar, glass, safe-area)
 ├── api/
-│   ├── chat/route.js      # POST /api/chat — pipeline AI principale + RAG Tavily
+│   ├── chat/route.js      # POST /api/chat — pipeline AI principale + RAG (indice locale prioritario, poi Tavily)
+│   ├── chat-locale/route.js # POST /api/chat-locale — modalità locale Ollama + indice vettoriale
+│   ├── setup-locale/route.js # GET /api/setup-locale — download + indicizzazione codici (SSE progress)
+│   │                       # GET ?check=1 — stato indice
+│   │                       # DELETE — elimina dati locali
 │   ├── status/route.js    # GET /api/status — verifica stato provider (incluso Tavily)
 │   └── upload/route.js    # POST /api/upload — estrazione testo PDF/TXT
 ├── info/page.js           # Pagina documentazione statica
@@ -39,7 +44,7 @@ app/
 
 Il sistema si basa su una **pipeline a 3 stadi** preceduta da RAG opzionale:
 
-0. **RAG** — Ricerca Tavily su domini normativi (Normattiva, Gazzetta Ufficiale, Italgiure, EUR-Lex) per arricchire il contesto prima della generazione
+0. **RAG** — Ricerca su indice keyword locale (prioritario) o Tavily su domini normativi (Normattiva, Gazzetta Ufficiale, Italgiure, EUR-Lex) per arricchire il contesto prima della generazione
 1. **Generazione** — Gemini 3.1 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
 2. **Validazione** — Llama 3.3 70B (Groq) verifica accuratezza giuridica e allucinazioni
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto
@@ -55,6 +60,7 @@ Ogni risposta include:
   "fonti": [{ "nome": "...", "sito": "normattiva.it" }],
   "modelli": {
     "tavily": true,
+    "indiceLocale": true,
     "generatore": "Gemini 3.1 Flash-Lite",
     "validatore": "Groq llama-3.3-70b-versatile",
     "rigenerato": false
@@ -65,6 +71,8 @@ Ogni risposta include:
 
 - Il prompt di sistema include istruzioni di formattazione (paragrafi separati da riga vuota, `-` per liste, `1.` per numerazioni, `**grassetto**` per concetti chiave)
 - Il lato client converte la formattazione in HTML semantico (`<ul>`, `<ol>`, `<strong>`, `<p>`, link cliccabili)
+- **Pannello contesto collassabile su mobile**: `contestoAperto` state + riga riepilogo + `ChevronDown` toggle; su desktop sempre espanso
+- **Link fonti Normattiva**: client-side `costruisciLinkFonte()` genera URL URN (`/uri-res/N2Ls?urn=...`) per articoli specifici (c.c., c.p., Cost.)
 
 ### Variabili d'ambiente necessarie
 
@@ -75,6 +83,9 @@ Ogni risposta include:
 | `NVIDIA_API_KEY` | NVIDIA (fallback intermedio) | build.nvidia.com |
 | `TAVILY_API_KEY` | Tavily (RAG) | tavily.com |
 | `OPENROUTER_API_KEY` | OpenRouter (fallback) | openrouter.ai |
+| `OLLAMA_HOST` | Ollama (locale, default `http://localhost:11434`) | — |
+| `OLLAMA_CHAT_MODEL` | Modello chat Ollama (default `llama3.1:8b`) | — |
+| `OLLAMA_EMBEDDING_MODEL` | Modello embedding Ollama (default `nomic-embed-text`) | — |
 
 ## Convenzioni di codice
 

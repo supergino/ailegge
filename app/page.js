@@ -19,9 +19,14 @@ import {
   Info,
   Paperclip,
   FileText,
+  Cpu,
+  AlertCircle,
+  CheckCircle,
+  HelpCircle,
+  ChevronDown,
 } from 'lucide-react'
 
-const APP_VERSION = '1.6.0'
+const APP_VERSION = '1.9.0'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',
@@ -69,9 +74,29 @@ export default function Home() {
   const [currentSessionId, setCurrentSessionId] = useState(null)
   const [cooldown, setCooldown] = useState(false)
   const [suggerite, setSuggerite] = useState([])
+  const [isOffline, setIsOffline] = useState(false)
+  const [setupStatus, setSetupStatus] = useState('idle')
+  const [setupProgress, setSetupProgress] = useState({ current: 0, total: 0 })
+  const [setupMessage, setSetupMessage] = useState('')
+  const [keywordInfo, setKeywordInfo] = useState(null)
+  const [vectorInfo, setVectorInfo] = useState(null)
+  const [ollamaStatus, setOllamaStatus] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [contestoAperto, setContestoAperto] = useState(false)
 
   useEffect(() => {
     setSuggerite(shuffle(DOMANDE_SUGGERITE).slice(0, 3))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/setup-locale?check=1')
+      .then(r => r.json())
+      .then(data => {
+        setKeywordInfo(data.keywordIndex?.initialized ? data.keywordIndex.info : null)
+        setVectorInfo(data.vectorStore?.initialized ? data.vectorStore.info : null)
+        setOllamaStatus(data.ollama)
+      })
+      .catch(() => {})
   }, [])
 
   const chatEndRef = useRef(null)
@@ -198,9 +223,71 @@ export default function Home() {
     setDocumentName('')
   }
 
-  const fetchWithRetry = async (body, maxRetries = 3) => {
+  const handleSetup = async () => {
+    setSetupStatus('downloading')
+    setSetupProgress({ current: 0, total: 0 })
+    setSetupMessage('Avvio setup...')
+    try {
+      const res = await fetch('/api/setup-locale')
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.type === 'status') {
+              setSetupMessage(data.message)
+            } else if (data.type === 'progress') {
+              setSetupProgress({ current: data.current, total: data.total })
+            } else if (data.type === 'complete') {
+              setSetupStatus('complete')
+              if (data.info.keyword) {
+                setKeywordInfo({ totale: data.info.keyword, codici: data.info.codici })
+              }
+              if (data.info.vector) {
+                fetch('/api/setup-locale?check=1').then(r => r.json()).then(d => {
+                  if (d.vectorStore?.initialized) setVectorInfo(d.vectorStore.info)
+                  if (d.keywordIndex?.initialized) setKeywordInfo(d.keywordIndex.info)
+                }).catch(() => {})
+              }
+              setSetupMessage(`Indicizzati ${data.info.keyword} chunk (${data.info.codici.join(', ')})`)
+            } else if (data.type === 'error') {
+              setSetupStatus('error')
+              setSetupMessage(data.message)
+            }
+          } catch {}
+        }
+      }
+    } catch (err) {
+      setSetupStatus('error')
+      setSetupMessage(err.message)
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      const res = await fetch('/api/setup-locale', { method: 'DELETE' })
+      const data = await res.json()
+      if (data.deleted) {
+        setKeywordInfo(null)
+        setVectorInfo(null)
+        setConfirmDelete(false)
+      }
+    } catch (err) {
+      console.error('Errore cancellazione dati:', err)
+    }
+  }
+
+  const fetchWithRetry = async (body, maxRetries = 3, endpoint = '/api/chat') => {
     for (let tentativo = 0; tentativo <= maxRetries; tentativo++) {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -232,14 +319,11 @@ export default function Home() {
 
     try {
       const historyContext = messages.length > 20 ? messages.slice(-20) : messages
-      const data = await fetchWithRetry({
-        message: userMessage,
-        messages: historyContext,
-        soloItalia,
-        modalitaTutor,
-        documentContext: documentContext || undefined,
-        documentName: documentName || undefined,
-      })
+      const endpoint = isOffline ? '/api/chat-locale' : '/api/chat'
+      const body = isOffline
+        ? { message: userMessage, messages: historyContext, modalitaTutor }
+        : { message: userMessage, messages: historyContext, soloItalia, modalitaTutor, documentContext: documentContext || undefined, documentName: documentName || undefined }
+      const data = await fetchWithRetry(body, 3, endpoint)
 
       const messaggiAggiornati = [...nuoviMessaggi, {
         role: 'assistant',
@@ -409,6 +493,41 @@ export default function Home() {
     </div>
   )
 
+  const costruisciLinkFonte = (sito, nome) => {
+    if (sito === 'normattiva.it' || sito === 'www.normattiva.it') {
+      const a = nome.match(/art\.?\s*(\d+)([-.\s]*(bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?\s*(c\.c\.|c\.p\.|cost\.|codice\s*civile|codice\s*penale|costituzione)?\b/i)
+      if (a) {
+        const art = a[1] + (a[2] ? a[2].replace(/[\s.]+/g, '-') : '')
+        const code = (a[4] || '').toLowerCase().replace(/[^a-z]/g, '')
+        let urn
+        if (/cp|codice\s*penale/.test(code)) {
+          urn = `urn:nir:stato:regio.decreto:1930-10-19;1398~art${art}`
+        } else if (/cost|costituzione/.test(code)) {
+          urn = `urn:nir:stato:costituzione:1947-12-27;1~art${art}`
+        } else {
+          urn = `urn:nir:stato:regio.decreto:1942-03-16;262~art${art}`
+        }
+        return `https://www.normattiva.it/uri-res/N2Ls?urn=${urn}!vig=`
+      }
+      return 'https://www.normattiva.it'
+    }
+    return `https://${sito.replace(/^www\./, '')}`
+  }
+
+  const formatDate = (iso) => {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  const isOlderThan = (iso, days) => {
+    if (!iso) return false
+    const d = new Date(iso)
+    const soglia = new Date()
+    soglia.setDate(soglia.getDate() - days)
+    return d < soglia
+  }
+
   return (
     <div className={`flex h-[100dvh] overflow-hidden ${bg}`}>
 
@@ -447,7 +566,7 @@ export default function Home() {
             aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
           >
             {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {isDarkMode ? 'Chiaro' : 'Scuro'}
+            {isDarkMode ? 'Tema chiaro' : 'Tema scuro'}
           </button>
         </div>
       </aside>
@@ -456,80 +575,11 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 flex-col">
 
         {/* Header — vetro smerigliato, compatto su mobile */}
-        <header className={`glass safe-top z-30 flex shrink-0 items-center gap-2 border-b px-3 py-2.5 sm:px-5 sm:py-3 ${surface} ${border}`}>
+        <header className={`glass safe-top z-30 flex shrink-0 items-center gap-2 border-b px-2 py-1.5 sm:px-3 sm:py-2 ${surface} ${border}`}>
           <Link href="/status" className="flex items-center gap-2 md:hidden hover:opacity-80 transition-opacity">
             <Scale className="h-[18px] w-[18px] text-[#0071e3]" strokeWidth={1.75} />
             <span className="text-[15px] font-semibold tracking-tight">IusMente</span>
           </Link>
-
-          {/* Pill modello AI + Tavily — solo desktop, discreta */}
-          <div className="hidden items-center gap-2 md:flex">
-            {/* Badge Tavily */}
-            <div
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${border} ${
-                isDarkMode ? 'bg-white/5 text-[#a1a1a6]' : 'bg-black/[0.03] text-[#6e6e73]'
-              }`}
-              title="Ricerca normativa su Normattiva, Gazzetta Ufficiale e Italgiure via Tavily API"
-            >
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-500 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-violet-500" />
-              </span>
-              <span className="font-semibold">Tavily</span>
-              <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· RAG</span>
-            </div>
-
-            {/* Badge modelli AI */}
-            <div
-              className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium ${border} ${
-                isDarkMode ? 'bg-white/5 text-[#a1a1a6]' : 'bg-black/[0.03] text-[#6e6e73]'
-              }`}
-              title="Gemini 3.1 Flash-Lite genera · Groq Llama 3.1 8B fallback · NVIDIA Llama 3.1 70B fallback · OpenRouter ultima spiaggia"
-            >
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              </span>
-              <span><span className="font-semibold">Gemini 3.1 Flash-Lite</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· genera</span></span>
-              <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
-              <span><span className="font-semibold">Groq 8B</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· fallback</span></span>
-              <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-              </span>
-              <span><span className="font-semibold">NVIDIA 70B</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· fallback</span></span>
-              <span className={`mx-0.5 ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-              </span>
-              <span><span className="font-semibold">OpenRouter</span> <span className={isDarkMode ? 'text-white/50' : 'text-black/40'}>· ultima spiaggia</span></span>
-              <a
-                href="/info"
-                className={`ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full transition-colors ${
-                  isDarkMode ? 'text-white/40 hover:bg-white/10 hover:text-white/80' : 'text-black/40 hover:bg-black/[0.06] hover:text-black/70'
-                }`}
-                aria-label="Informazioni sull'applicazione"
-                title="Maggiori informazioni sull'architettura e i modelli usati"
-              >
-                <Info className="h-3 w-3" strokeWidth={2} />
-              </a>
-            </div>
-          </div>
-
-{cronologia.length > 0 && (
-    <div className="flex h-12 w-full items-center justify-between border-b px-3 pb-2 md:hidden">
-      <div className="flex items-center gap-1">
-        <BookOpen className="h-4 w-4 text-[#0071e3]" strokeWidth={1.75} />
-        <span className="text-sm font-semibold tracking-tight">Domande</span>
-      </div>
-      <div className="flex items-center gap-2 md:flex-col justify-end">
-        <Clock className="h-4 w-4 text-[#0071e3]" strokeWidth={1.75} />
-        <span className="text-sm font-semibold tracking-tight">Cronologia</span>
-      </div>
-    </div>
-)}
 
           <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             {/* Cronologia: icona compatta su mobile, niente sidebar */}
@@ -549,16 +599,16 @@ export default function Home() {
               )}
             </button>
 
-<button
-               type="button"
-               onClick={() => setIsDarkMode(!isDarkMode)}
-               className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                 isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
-                }`}
-               aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
-              >
-                {isDarkMode ? <Sun className="h-[17px] w-[17px]" strokeWidth={1.75} /> : <Moon className="h-[17px] w-[17px]" strokeWidth={1.75} />}
-              </button>
+            <button
+              type="button"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors md:hidden ${
+                isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/[0.06]'
+              }`}
+              aria-label={isDarkMode ? 'Modalità chiara' : 'Modalità scura'}
+            >
+              {isDarkMode ? <Sun className="h-[17px] w-[17px]" strokeWidth={1.75} /> : <Moon className="h-[17px] w-[17px]" strokeWidth={1.75} />}
+            </button>
 
             <button
               type="button"
@@ -573,104 +623,151 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Pannello contesto: scope giuridico + modalità di risposta */}
+        {/* Pannello contesto: scope giuridico + modalità */}
         <div className={`shrink-0 border-b ${border} ${surface}`}>
-          <div className="mx-auto grid max-w-2xl gap-3 px-3 py-3 sm:px-5 sm:py-4 md:grid-cols-2">
-            {/* Gruppo 1: scope giuridico */}
-            <div className={`rounded-2xl border p-3 sm:p-3.5 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
-              <div className="mb-2 flex items-center gap-2">
-                <Globe className="h-3.5 w-3.5 text-[#0071e3]" strokeWidth={1.75} />
-                <span className={`text-[11px] font-semibold uppercase tracking-wider ${muted}`}>
-                  Contesto giuridico
-                </span>
-              </div>
-              <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
-                <button
-                  type="button"
-                  onClick={() => setSoloItalia(true)}
-                  className={`flex-1 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-all sm:text-[13px] ${
-                    soloItalia
-                      ? 'bg-[#0071e3] text-white shadow-sm'
-                      : muted
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider ${
-                      soloItalia
-                        ? 'bg-white/20 text-white'
-                        : 'bg-[#0071e3]/10 text-[#0071e3]'
-                    }`}>
-                      🇮🇹 ITALIA
-                    </span>
-                    <span>Solo leggi italiane</span>
-                  </span>
-                  <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${soloItalia ? 'text-white/80' : muted}`}>
-                    No UE, no CEDU
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSoloItalia(false)}
-                  className={`flex-1 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-all sm:text-[13px] ${
-                    !soloItalia
-                      ? 'bg-[#0071e3] text-white shadow-sm'
-                      : muted
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider ${
-                      !soloItalia
-                        ? 'bg-white/20 text-white'
-                        : 'bg-[#0071e3]/10 text-[#0071e3]'
-                    }`}>
-                      🇪🇺 UE
-                    </span>
-                    <span>Includi UE e internazionale</span>
-                  </span>
-                  <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${!soloItalia ? 'text-white/80' : muted}`}>
-                    Trattati, CGUE, CEDU
-                  </span>
-                </button>
-              </div>
+          {/* Mobile: riga compatta con riepilogo + toggle */}
+          <button
+            type="button"
+            onClick={() => setContestoAperto(!contestoAperto)}
+            className={`flex w-full items-center gap-2 px-3 py-2 md:hidden ${isDarkMode ? 'active:bg-white/5' : 'active:bg-black/[0.02]'}`}
+          >
+            <div className="flex flex-1 items-center gap-2 overflow-hidden">
+              <Globe className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" strokeWidth={1.75} />
+              <span className={`truncate text-[12px] font-medium ${soloItalia ? '' : 'text-[#0071e3]'}`}>{soloItalia ? '🇮🇹 Solo Italia' : '🇪🇺 Italia + UE'}</span>
+              <span className={`${isDarkMode ? 'text-white/15' : 'text-black/15'}`}>·</span>
+              <Gavel className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" strokeWidth={1.75} />
+              <span className={`truncate text-[12px] font-medium ${modalitaTutor ? '' : 'text-[#0071e3]'}`}>{modalitaTutor ? 'Assistenza studio' : 'Ufficiale'}</span>
+              <span className={`${isDarkMode ? 'text-white/15' : 'text-black/15'}`}>·</span>
+              <Cpu className="h-3.5 w-3.5 shrink-0 text-[#0071e3]" strokeWidth={1.75} />
+              <span className={`truncate text-[12px] font-medium ${isOffline ? 'text-[#0071e3]' : ''}`}>{isOffline ? 'Locale' : 'Online'}</span>
             </div>
+            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${muted} ${contestoAperto ? 'rotate-180' : ''}`} strokeWidth={2} />
+          </button>
 
-            {/* Gruppo 2: modalità di risposta */}
-            <div className={`rounded-2xl border p-3 sm:p-3.5 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
-              <div className="mb-2 flex items-center gap-2">
-                <Gavel className="h-3.5 w-3.5 text-[#0071e3]" strokeWidth={1.75} />
-                <span className={`text-[11px] font-semibold uppercase tracking-wider ${muted}`}>
-                  Modalità di risposta
-                </span>
+          <div className={`${contestoAperto || 'hidden'} md:block`}>
+            <div className="mx-auto grid max-w-5xl gap-1 px-2 py-1 sm:px-3 sm:py-1.5 md:grid-cols-3">
+              {/* Gruppo 1: contesto giuridico */}
+              <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
+                <div className="mb-0.5 flex items-center gap-1.5">
+                  <Globe className="h-3 w-3 text-[#0071e3]" strokeWidth={1.75} />
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Contesto</span>
+                  <a href="/info#contesto" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`} aria-label="Info contesto" title="Ambito normativo di riferimento"><HelpCircle className="h-3 w-3" strokeWidth={2.5} /></a>
+                </div>
+                <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setSoloItalia(true)}
+                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${soloItalia ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[8px] font-bold uppercase leading-none tracking-wider ${soloItalia ? 'bg-white/20 text-white' : 'bg-[#0071e3]/10 text-[#0071e3]'}`}>🇮🇹 ITALIA</span>
+                      <span>Solo leggi italiane</span>
+                    </span>
+                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${soloItalia ? 'text-white/80' : muted}`}>No UE, no CEDU</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSoloItalia(false)}
+                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${!soloItalia ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[8px] font-bold uppercase leading-none tracking-wider ${!soloItalia ? 'bg-white/20 text-white' : 'bg-[#0071e3]/10 text-[#0071e3]'}`}>🇪🇺 UE</span>
+                      <span>Includi UE e internazionale</span>
+                    </span>
+                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${!soloItalia ? 'text-white/80' : muted}`}>Trattati, CGUE, CEDU</span>
+                  </button>
+                </div>
               </div>
-              <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
-                <button
-                  type="button"
-                  onClick={() => setModalitaTutor(true)}
-                  className={`flex-1 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-all sm:text-[13px] ${
-                    modalitaTutor
-                      ? 'bg-[#0071e3] text-white shadow-sm'
-                      : muted
-                  }`}
-                >
-                  Assistenza studio
-                  <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${modalitaTutor ? 'text-white/80' : muted}`}>
-                    Spiegazioni, quiz, simulazioni
+
+              {/* Gruppo 2: modalità risposta */}
+              <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
+                <div className="mb-0.5 flex items-center gap-1.5">
+                  <Gavel className="h-3 w-3 text-[#0071e3]" strokeWidth={1.75} />
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Risposta</span>
+                  <a href="/info#risposta" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`} aria-label="Info risposta" title="Modalità di spiegazione delle risposte"><HelpCircle className="h-3 w-3" strokeWidth={2.5} /></a>
+                </div>
+                <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setModalitaTutor(true)}
+                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${modalitaTutor ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                  >
+                    Assistenza studio
+                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${modalitaTutor ? 'text-white/80' : muted}`}>Spiegazioni, quiz, simulazioni</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalitaTutor(false)}
+                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${!modalitaTutor ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                  >
+                    Ambito ufficiale legislativo
+                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${!modalitaTutor ? 'text-white/80' : muted}`}>Come in commissione d'esame</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Gruppo 3: elaborazione */}
+              <div className={`rounded-xl border px-2.5 py-2 ${border} ${isDarkMode ? 'bg-black/30' : 'bg-white/60'}`}>
+                <div className="mb-0.5 flex items-center gap-1.5">
+                  <Cpu className="h-3 w-3 text-[#0071e3]" strokeWidth={1.75} />
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>
+                    Elaborazione <span className="ml-1 rounded-md bg-amber-500/15 px-1 py-0.5 text-[8px] font-bold text-amber-500">BETA</span>
                   </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalitaTutor(false)}
-                  className={`flex-1 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-all sm:text-[13px] ${
-                    !modalitaTutor
-                      ? 'bg-[#0071e3] text-white shadow-sm'
-                      : muted
-                  }`}
-                >
-                  Ambito ufficiale legislativo
-                  <span className={`mt-0.5 block text-[10.5px] font-normal leading-snug sm:text-[11px] ${!modalitaTutor ? 'text-white/80' : muted}`}>
-                    Come in commissione d'esame
-                  </span>
-                </button>
+                  <a href="/info#elaborazione" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`}
+                    aria-label="Info modalità" title="Confronto Online vs Locale">
+                    <HelpCircle className="h-3 w-3" strokeWidth={2.5} />
+                  </a>
+                </div>
+                <div className={`inline-flex w-full rounded-lg p-0.5 ${isDarkMode ? 'bg-[#2c2c2e]' : 'bg-black/[0.06]'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setIsOffline(false)}
+                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${!isOffline ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Globe className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+                      <span>Online</span>
+                    </span>
+                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${!isOffline ? 'text-white/80' : muted}`}>{keywordInfo ? 'Indice locale + Gemini' : 'API cloud (Gemini, Tavily)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsOffline(true)}
+                    className={`flex-1 rounded-md px-1.5 py-1 text-left text-[11px] font-medium transition-all sm:text-[12px] ${isOffline ? 'bg-[#0071e3] text-white shadow-sm' : muted}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Cpu className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+                      <span>Locale</span>
+                    </span>
+                    <span className={`mt-0.5 block text-[9px] font-normal leading-snug ${isOffline ? 'text-white/80' : muted}`}>{vectorInfo ? 'Ollama + DB vettoriale' : 'Ollama offline'}</span>
+                  </button>
+                </div>
+                {setupStatus === 'downloading' ? (
+                  <div className="mt-1.5">
+                    <div className="flex items-center justify-between text-[10px]"><span className={`truncate ${muted}`}>{setupMessage}</span>{setupProgress.total > 0 && <span className={`shrink-0 font-medium ${isDarkMode ? 'text-white/70' : 'text-black/60'}`}>{setupProgress.current}/{setupProgress.total}</span>}</div>
+                    <div className={`mt-0.5 h-0.5 w-full overflow-hidden rounded-full ${isDarkMode ? 'bg-white/10' : 'bg-black/[0.06]'}`}><div className="h-full rounded-full bg-[#0071e3] transition-all duration-300" style={{ width: setupProgress.total > 0 ? `${(setupProgress.current / setupProgress.total) * 100}%` : '5%' }} /></div>
+                  </div>
+                ) : setupStatus === 'error' ? (
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-red-500"><AlertCircle className="h-2.5 w-2.5 shrink-0" strokeWidth={2} /><span className="truncate leading-tight">{setupMessage}</span><button type="button" onClick={handleSetup} className="ml-auto shrink-0 rounded-md bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-500 hover:bg-red-500/25">Riprova</button></div>
+                ) : keywordInfo || vectorInfo ? (
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]">
+                      <span className={muted}>📖 {keywordInfo?.totale || vectorInfo?.totale} chunk</span>
+                      {keywordInfo?.downloadedAt && <span className={muted}>{formatDate(keywordInfo.downloadedAt)}</span>}
+                      {keywordInfo?.downloadedAt && isOlderThan(keywordInfo.downloadedAt, 90) && <span className="text-amber-500">⚠️</span>}
+                      {confirmDelete ? (
+                        <span className="ml-auto flex gap-1">
+                          <button type="button" onClick={handleDelete} className="rounded bg-red-500 px-1.5 py-0.5 text-[9px] font-medium text-white hover:bg-red-600">Conferma</button>
+                          <button type="button" onClick={() => setConfirmDelete(false)} className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${isDarkMode ? 'border border-white/20 text-white/70 hover:bg-white/10' : 'border border-black/[0.12] text-black/60 hover:bg-black/[0.04]'}`}>No</button>
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => setConfirmDelete(true)} className="ml-auto inline-flex items-center gap-1 text-red-400 hover:text-red-500"><span>Elimina</span>✕</button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={handleSetup} className="mt-1.5 w-full rounded bg-[#0071e3] py-1 text-[11px] font-medium text-white hover:bg-[#0077ed]">Scarica codici</button>
+                )}
               </div>
             </div>
           </div>
@@ -679,21 +776,23 @@ export default function Home() {
         {/* Chat */}
         <main className="flex-1 overflow-y-auto overscroll-contain">
           {messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center px-6 pb-8 pt-4 text-center animate-fade-in">
-              <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-[22px] ${
-                isDarkMode ? 'bg-[#1d1d1f]' : 'bg-white shadow-lg shadow-black/[0.06]'
-              }`}>
-                <Scale className="h-8 w-8 text-[#0071e3]" strokeWidth={1.5} />
+            <div className="flex h-full flex-col items-center justify-center px-6 pb-8 pt-4 animate-fade-in">
+              <div className="flex items-center gap-3 text-center">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] ${
+                  isDarkMode ? 'bg-[#1d1d1f]' : 'bg-white shadow-lg shadow-black/[0.06]'
+                }`}>
+                  <Scale className="h-5 w-5 text-[#0071e3]" strokeWidth={1.5} />
+                </div>
+                <h2 className="text-[22px] font-semibold tracking-tight sm:text-[26px]">
+                  {modalitaTutor ? 'Assistenza studio' : 'Ambito ufficiale legislativo'}
+                </h2>
               </div>
-              <h2 className="text-[28px] font-semibold tracking-tight sm:text-[32px]">
-                {modalitaTutor ? 'Assistenza studio.' : 'Ambito ufficiale legislativo.'}
-              </h2>
-              <p className={`mt-2 max-w-sm text-[15px] leading-relaxed sm:text-[17px] ${muted}`}>
+              <p className={`mt-2 max-w-sm text-[14px] leading-relaxed sm:text-[15px] ${muted}`}>
                 {modalitaTutor
                   ? 'Spiegazioni, quiz e simulazioni per prepararti agli esami.'
                   : 'Risposte formali e rigorose, come davanti alla commissione.'}
               </p>
-              <div className={`mt-8 flex flex-wrap justify-center gap-2`}>
+              <div className={`mt-6 flex flex-wrap justify-center gap-2`}>
                 {suggerite.map(suggerimento => (
                   <button
                     key={suggerimento}
@@ -735,7 +834,7 @@ export default function Home() {
                               <li key={j} className="text-[12px] leading-snug">
                                 {sito ? (
                                   <a
-                                    href={`https://${sito}`}
+                                    href={costruisciLinkFonte(sito, nome)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className={`inline-flex max-w-full items-baseline gap-1.5 underline decoration-dotted underline-offset-2 transition-colors ${
@@ -762,6 +861,13 @@ export default function Home() {
                           <span className="inline-flex items-center gap-1 text-[10px] leading-tight">
                             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-violet-500" />
                             Tavily RAG
+                          </span>
+                        )}
+                        {/* Indice locale */}
+                        {m.modelli.indiceLocale && (
+                          <span className="inline-flex items-center gap-1 text-[10px] leading-tight">
+                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-teal-500" />
+                            Indice locale
                           </span>
                         )}
                         {/* Generatore */}
@@ -898,8 +1004,8 @@ export default function Home() {
               </button>
             </div>
           </form>
-          {/* Credit */}
-          <div className={`mx-auto mt-2 inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1 text-[11px] ${isDarkMode ? 'bg-[#1d1d1f]/60' : 'bg-white/80 shadow-sm shadow-black/[0.03]'}`}>
+          {/* Credit + modelli */}
+          <div className={`mx-auto mt-2 inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 rounded-full px-3 py-1 text-[11px] ${isDarkMode ? 'bg-[#1d1d1f]/60' : 'bg-white/80 shadow-sm shadow-black/[0.03]'}`}>
             <span className={isDarkMode ? 'text-[#a1a1a6]' : 'text-[#6e6e73]'}>Realizzato da</span>
             <span
               className="inline-flex items-center gap-1 font-semibold"
@@ -909,8 +1015,28 @@ export default function Home() {
               <span aria-hidden="true">🐻</span>
             </span>
             <span className={`${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
-            <span className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] leading-none ${isDarkMode ? 'bg-white/10 text-[#a1a1a6]' : 'bg-black/[0.06] text-[#6e6e73]'}`}>
+            <a
+              href="/info"
+              className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] leading-none transition-colors ${
+                isDarkMode ? 'bg-white/10 text-[#a1a1a6] hover:bg-white/15' : 'bg-black/[0.06] text-[#6e6e73] hover:bg-black/[0.1]'
+              }`}
+              title="Maggiori informazioni sull'architettura e i modelli usati"
+            >
               v{APP_VERSION}
+              <Info className="h-2.5 w-2.5" strokeWidth={2} />
+            </a>
+            <span className={`hidden sm:inline ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
+            <span className={`hidden sm:inline-flex items-center gap-1 text-[10px] leading-tight ${muted}`}>
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Gemini 3.1 Flash-Lite
+            </span>
+            <span className={`hidden sm:inline-flex items-center gap-1 text-[10px] leading-tight ${muted}`}>
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-violet-500" />
+              Tavily RAG
+            </span>
+            <span className={`hidden sm:inline-flex items-center gap-1 text-[10px] leading-tight ${muted}`}>
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+              Groq · NVIDIA · OpenRouter
             </span>
           </div>
         </footer>

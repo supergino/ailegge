@@ -1,6 +1,6 @@
 # IusMente
 
-Assistente virtuale intelligente per studenti di giurisprudenza, basato su una pipeline multi-modello con validazione incrociata, fallback automatico a 4 livelli e ricerca RAG su fonti normative italiane.
+Assistente virtuale intelligente per studenti di giurisprudenza, basato su una pipeline multi-modello con validazione incrociata, fallback automatico a 4 livelli e ricerca RAG su fonti normative italiane. Supporta modalità **Online** (cloud LLM + indice locale dei codici) e **Locale** (Ollama, completamente offline).
 
 ---
 
@@ -11,7 +11,13 @@ Assistente virtuale intelligente per studenti di giurisprudenza, basato su una p
 - **Pipeline anti-allucinazione**: Gemini genera la risposta JSON strutturata, Llama 3.3 70B (Groq) la valida, in caso di criticità viene rigenerata automaticamente
 - **Fallback automatico a 4 livelli**: Gemini → Groq (veloce) → NVIDIA (potente) → OpenRouter (catena 4 modelli)
 - **Ricerca RAG su fonti normative**: Tavily interroga Normattiva, Gazzetta Ufficiale, Italgiure (e EUR-Lex) per ancorare le risposte a fonti aggiornate — indicatore visivo nella risposta quando il RAG è attivo
+- **Indice locale codici (keyword)**: scarica una volta sola il Codice Civile e il Codice Penale da Normattiva, indicizzazione keyword TF-IDF zero-dipendenze. Le risposte usano l'indice locale invece di chiamare Tavily a ogni domanda — badge "Indice locale" nella risposta
+- **Modalità Online con indice locale**: cloud LLM (Gemini) + ricerca locale sui codici scaricati. Nessuna connessione a siti esterni per le domande coperte dai codici
+- **Modalità Locale (Ollama)**: completamente offline. LLM locale (llama3.1:8b) + ricerca vettoriale. Scarica i codici una volta e funziona senza internet
+- **Fallback automatico Ollama→Gemini**: se Ollama non è in esecuzione, la modalità Locale usa automaticamente Gemini con l'indice locale dei codici
 - **Upload documenti**: allega file PDF o TXT (max 5 MB) per analizzarli con l'assistente
+- **Pannello contesto collassabile su mobile**: riga di riepilogo con le 3 modalità attive, espandibile per modificare le impostazioni — più spazio per chat su schermi piccoli
+- **Deep linking Normattiva**: i link alle fonti nei risultati puntano direttamente all'articolo specifico sui codici (Civile, Penale, Costituzione) via URN Normattiva
 - **Design nativo Apple**: interfaccia in vetro smerigliato, supporto safe-area per dispositivi iOS, tema chiaro/scuro
 - **Cronologia persistente**: conversazioni salvate in localStorage, riprendibili in qualsiasi momento
 - **Zero tracker**: nessun cookie di tracciamento o analytics
@@ -22,75 +28,59 @@ Assistente virtuale intelligente per studenti di giurisprudenza, basato su una p
 ## Architettura
 
 ```
-Domanda utente
-      │
-      ▼
-┌─────────────────────┐
-│   Ricerca RAG       │  ← Tavily su normattiva.it, gazzettaufficiale.it,
-│   (opzionale)       │     italgiure.giustizia.it
-└─────────┬───────────┘
-          │
-          ▼
-┌─────────────────────┐
-│  Gemini 3.1         │  ← Genera risposta JSON strutturata
-│  Flash-Lite         │     { text, fonti[] }
-│  (tentativo n. 1)   │
-└─────────┬───────────┘
-          │
-    ┌─────┴──────┐
-    ▼            ▼
-  Successo    Quota esaurita
-    │            │
-    │            ▼
-    │    ┌─────────────────┐
-    │    │  Groq            │  ← Fallback veloce
-    │    │  Llama 3.1 8B    │     stesso formato JSON
-    │    │  (tentativo n.2) │
-    │    └────────┬────────┘
-    │        ┌────┴──────┐
-    │        ▼           ▼
-    │    Successo    Quota esaurita
-    │        │           │
-    │        │           ▼
-    │        │    ┌─────────────────┐
-    │        │    │  NVIDIA          │  ← Fallback potente
-    │        │    │  Llama 3.1 70B   │     inferenza GPU
-    │        │    │  (tentativo n.3) │
-    │        │    └────────┬─────────┘
-    │        │        ┌────┴──────┐
-    │        │        ▼           ▼
-    │        │    Successo    Quota esaurita
-    │        │        │           │
-    │        │        │           ▼
-    │        │        │    ┌─────────────────┐
-    │        │        │    │  OpenRouter      │  ← Catena 4 modelli
-    │        │        │    │  4 modelli       │     ultima spiaggia
-    │        │        │    │  (tentativo n.4) │
-    │        │        │    └────────┬─────────┘
-    │        │        │            ▼
-    │        │        │        Successo / errore
-    │        │        │
-    └────┬───┴────────┘
-         ▼
-┌─────────────────────┐
-│  Llama 3.3 70B      │  ← Valuta accuratezza giuridica (solo se
-│  via Groq            │     la risposta NON proviene da fallback)
-└─────────┬───────────┘
-          │
-    ┌─────┴─────┐
-    ▼           ▼
-  Valido     Non valido
-    │           │
-    │           ▼
-    │    ┌─────────────────┐
-    │    │  Rigenerazione  │  ← Con lo stesso modello che ha
-    │    │  automatica     │     generato, criticità come contesto
-    │    └────────┬────────┘
-    │              │
-    └──────┬───────┘
-           ▼
-    Risposta finale + fonti
-    + indicatore modello usato
+┌───────────────────────────────────────────────────────┐
+│            MODALITÀ ONLINE (cloud LLM)                │
+├───────────────────────────────────────────────────────┤
+│                                                       │
+│  Domanda utente                                       │
+│       │                                               │
+│       ▼                                               │
+│  ┌──────────────┐    ┌──────────────────────┐         │
+│  │ Indice locale│◄── │ Keyword Index (TF-IDF)│  ← Scaricato
+│  │ (prioritario)│    │ Codice Civile/Penale  │     una volta
+│  └──────┬───────┘    └──────────────────────┘         │
+│         │                                              │
+│    ┌────┴─────┐    Se indice vuoto                    │
+│    ▼          ▼    o non pertinente                    │
+│  Risultati   ┌──────────┐                             │
+│    │         │ Tavily   │  ← RAG su normattiva.it     │
+│    │         │ (fallback)│    gazzettaufficiale.it     │
+│    │         └────┬─────┘                             │
+│    └──────┬───────┘                                   │
+│           ▼                                           │
+│  ┌────────────────────┐                               │
+│  │ Gemini 3.1 Flash   │  ← Genera risposta            │
+│  │ (+ catena fallback │     con contesto RAG          │
+│  │  Groq→NVIDIA→OR)   │                               │
+│  └─────────┬──────────┘                               │
+│            ▼                                          │
+│  ┌────────────────────┐                               │
+│  │ Llama 3.3 70B      │  ← Validazione (Groq)        │
+│  │ + rigenerazione    │                               │
+│  └─────────┬──────────┘                               │
+│            ▼                                          │
+│     Risposta + badge "Indice locale" / "Tavily RAG"  │
+│                                                       │
+├───────────────────────────────────────────────────────┤
+│            MODALITÀ LOCALE (Ollama)                   │
+├───────────────────────────────────────────────────────┤
+│                                                       │
+│  Domanda utente                                       │
+│       │                                               │
+│       ▼                                               │
+│  ┌──────────────┐   ┌────────────────────────┐        │
+│  │ Vector Store │   │ Keyword Index (TF-IDF) │        │
+│  │ (Ollama)     │   │ (fallback se no Ollama)│        │
+│  └──────┬───────┘   └────────────────────────┘        │
+│         ▼                                             │
+│  ┌──────────────┐                                     │
+│  │ Ollama       │  ← Generazione locale               │
+│  │ llama3.1:8b  │     (fallback→Gemini se offline)    │
+│  └──────┬───────┘                                     │
+│         ▼                                             │
+│     Risposta + badge modello usato                    │
+│                                                       │
+└───────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -106,9 +96,14 @@ Domanda utente
 | AI generativa (fallback veloce) | Llama 3.1 8B (Groq Cloud) |
 | AI generativa (fallback potente) | Llama 3.1 70B (NVIDIA API) |
 | AI generativa (fallback estremo) | OpenRouter (4 modelli in catena) |
+| AI generativa (locale) | Ollama — `llama3.1:8b` (configurabile) |
 | AI validatore | Llama 3.3 70B (Groq Cloud) |
-| Ricerca RAG | Tavily Search API |
+| Ricerca RAG cloud | Tavily Search API |
+| Ricerca locale (keyword) | Indice invertito TF-IDF (zero dipendenze) |
+| Ricerca locale (vettoriale) | Cosine similarity su `.data/vector-index.json` (Ollama) |
 | Estrazione PDF | `pdf-parse` |
+| Database vettoriale | JSON file-based (`.data/vector-index.json`) |
+| Indice keyword | JSON file-based (`.data/keyword-index.json`) |
 
 ---
 
@@ -145,13 +140,44 @@ cp .env.example .env.local
 
 \* *Tutte tranne GEMINI_API_KEY sono opzionali: senza di esse il sistema funziona comunque saltando i rispettivi step.*
 
-### Avvio
+### Setup indice locale
+
+Nell'interfaccia, passa alla **Modalità elaborazione → Locale** o **Online** e clicca **"Scarica e indicizza codici"**. Il sistema scaricherà il Codice Civile e il Codice Penale da Normattiva, li chunkerà e costruirà:
+
+1. **Indice keyword** (sempre): ricerca testuale TF-IDF, zero dipendenze, ~3-5 MB
+2. **Vector store** (solo se Ollama è disponibile): embeddings vettoriali per ricerca semantica, ~5-8 MB
+
+Una volta completato, le risposte useranno l'indice locale invece di chiamare Tavily a ogni domanda.
+
+### Modalità Locale (Ollama)
+
+Per la modalità completamente offline:
+
+```bash
+# Installa Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Scarica i modelli necessari
+ollama pull llama3.1:8b
+ollama pull nomic-embed-text
+
+# Avvia Ollama
+ollama serve
+```
+
+Poi avvia l'app:
 
 ```bash
 npm run dev
 ```
 
-Apri [http://localhost:3000](http://localhost:3000).
+Apri [http://localhost:3000](http://localhost:3000) e seleziona **Modalità elaborazione → Locale**.
+
+### Eliminazione dati
+
+Per cancellare i codici scaricati e gli indici:
+- Dalle impostazioni dell'app: clicca **"Elimina dati codici"** (conferma richiesta)
+- Manualmente: elimina la cartella `.data/` nella radice del progetto
 
 ---
 
@@ -159,7 +185,7 @@ Apri [http://localhost:3000](http://localhost:3000).
 
 ### `POST /api/chat`
 
-Genera una risposta giuridica.
+Genera una risposta giuridica (modalità Online). Usa l'indice keyword locale come RAG prioritario, Tavily come fallback.
 
 **Body:**
 
@@ -182,7 +208,8 @@ Genera una risposta giuridica.
   "modalita": "tutor",
   "fonti": [{ "nome": "Art. 2043 c.c.", "sito": "normattiva.it" }],
   "modelli": {
-    "tavily": true,
+    "tavily": false,
+    "indiceLocale": true,
     "generatore": "Gemini 3.1 Flash-Lite",
     "validatore": "Groq llama-3.3-70b-versatile",
     "rigenerato": false
@@ -201,9 +228,53 @@ Il campo `modelli.generatore` cambia in base al modello effettivamente usato:
 - `"Gemini 3.1 Flash-Lite"` — generatore primario
 - `"Groq"` — fallback veloce
 - `"NVIDIA"` — fallback potente
-- `"OpenRouter:meta-llama/llama-3.1-8b-instruct"` — catena estremo
+- `"OpenRouter:..."` — catena estremo
 
-Il campo `modelli.tavily` (`true`/`false`) indica se la ricerca RAG ha prodotto risultati e ha arricchito il contesto della risposta.
+Il campo `modelli.tavily` (`true`/`false`) indica se la ricerca Tavily è stata usata.  
+Il campo `modelli.indiceLocale` (`true`/`false`) indica se l'indice keyword locale è stato usato (prioritario su Tavily).
+
+### `POST /api/chat-locale`
+
+Genera una risposta in modalità Locale (Ollama + indice locale). Se Ollama non è disponibile, fallback automatico a Gemini con il contesto dell'indice locale.
+
+**Body:**
+
+```json
+{
+  "message": "Spiega la responsabilità extracontrattuale",
+  "messages": [],
+  "modalitaTutor": true
+}
+```
+
+**Risposta:** stesso formato di `/api/chat`, con `modelli.generatore` che indica il modello effettivamente usato (es. `"Locale (llama3.1:8b)"` o `"Gemini 3.1 Flash-Lite (fallback, indice locale)"`).
+
+### `GET /api/setup-locale`
+
+Avvia il download e l'indicizzazione dei codici (Server-Sent Events). Restituisce un flusso di eventi JSON con lo stato di avanzamento:
+
+```
+data: {"type": "status", "message": "Scarico Codice Civile..."}
+data: {"type": "progress", "current": 50, "total": 500}
+data: {"type": "complete", "info": {"keyword": 1200, "vector": true, "codici": ["Codice Civile", "Codice Penale"]}}
+data: {"type": "error", "message": "..."}
+```
+
+### `GET /api/setup-locale?check=1`
+
+Verifica lo stato corrente dell'indice locale:
+
+```json
+{
+  "keywordIndex": { "initialized": true, "info": { "totale": 1200, "codici": ["Codice Civile", "Codice Penale"] } },
+  "vectorStore": { "initialized": true, ... } | { "initialized": false },
+  "ollama": { "available": true, "models": ["llama3.1:8b", "nomic-embed-text"], ... }
+}
+```
+
+### `DELETE /api/setup-locale`
+
+Elimina tutti i dati locali (keyword index + vector store). Usato dal pulsante "Elimina dati codici" nelle impostazioni.
 
 ### `GET /api/status`
 
@@ -230,6 +301,8 @@ Navigabile su `/status`, mostra in tempo reale lo stato di ogni provider nella c
 - La cronologia è salvata esclusivamente nel **localStorage del browser** — nessun dato lascia il dispositivo
 - I documenti caricati vengono elaborati in tempo reale e **non memorizzati** sul server
 - I messaggi vengono processati da Google AI, Groq Cloud, NVIDIA, OpenRouter e Tavily secondo i termini di servizio di ciascun fornitore
+- In **modalità Locale (Ollama)**, nessun dato lascia il tuo computer — LLM e indice sono interamente locali
+- I codici scaricati e l'indice keyword/vector store sono salvati nella cartella `.data/` del progetto — cancellabili in qualsiasi momento dalle impostazioni
 - Nessun cookie di tracciamento o analytics
 
 ---

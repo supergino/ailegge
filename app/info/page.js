@@ -32,6 +32,11 @@ export default function InfoPage() {
             simulazioni d'esame, e persino caricare documenti da analizzare insieme.
           </p>
           <p className="mt-2 text-[15px] leading-relaxed text-[#6e6e73] sm:text-[17px]">
+            IusMente funziona in <strong>due modalità</strong>: <strong>Online</strong> usa modelli cloud
+            (Gemini, Groq) con un indice locale dei codici scaricati; <strong>Locale (Ollama)</strong> è
+            completamente offline, LLM e indice girano sul tuo computer.
+          </p>
+          <p className="mt-2 text-[15px] leading-relaxed text-[#6e6e73] sm:text-[17px]">
             Non è un consulente legale. Le risposte hanno finalità didattica e
             non sostituiscono la consultazione delle fonti ufficiali, del tuo
             docente o di un professionista legale.
@@ -54,6 +59,47 @@ export default function InfoPage() {
           </p>
         </Section>
 
+        {/* ==================== MODALITÀ ELABORAZIONE ==================== */}
+        <Section id="elaborazione" title="Modalità di elaborazione">
+          <p>
+            Nelle impostazioni trovi il selettore <strong>Modalità elaborazione</strong>:
+          </p>
+
+          <h3 className="text-[16px] font-semibold">Online (cloud LLM + indice locale)</h3>
+          <p>
+            Usa i modelli cloud (Gemini 3.1 Flash-Lite, con catena di fallback
+            Groq → NVIDIA → OpenRouter) per generare le risposte. Se hai
+            scaricato i codici, l'indice keyword locale viene usato come
+            sorgente RAG — niente connessione a Normattiva/Tavily a ogni
+            domanda per il diritto civile e penale.
+          </p>
+
+          <h3 className="mt-4 text-[16px] font-semibold">Locale (Ollama)</h3>
+          <p>
+            Modalità completamente offline. Richiede{' '}
+            <a href="https://ollama.com" className="text-[#0071e3] hover:underline" target="_blank" rel="noopener noreferrer">Ollama</a>{' '}
+            con i modelli <Code>llama3.1:8b</Code> e <Code>nomic-embed-text</Code>.
+            Tutto gira sul tuo computer: generazione, embedding e ricerca
+            vettoriale. Se Ollama non è in esecuzione, IusMente fallbacka
+            automaticamente a Gemini usando l'indice locale dei codici.
+          </p>
+
+          <h3 className="mt-4 text-[16px] font-semibold">Scaricare i codici</h3>
+          <p>
+            Clicca <strong>"Scarica e indicizza codici"</strong> nelle
+            impostazioni. IusMente scarica il Codice Civile e il Codice Penale
+            da Normattiva, li divide in chunk e costruisce:
+          </p>
+          <ul className="list-disc pl-5">
+            <li><strong>Indice keyword</strong> (sempre) — ricerca testuale TF-IDF, ~3-5 MB, zero dipendenze</li>
+            <li><strong>Vector store</strong> (solo se Ollama è presente) — embeddings vettoriali, ~5-8 MB</li>
+          </ul>
+          <p className="mt-2 text-[13px] text-[#86868b]">
+            Puoi eliminare tutto con il pulsante "Elimina dati codici" nelle
+            impostazioni o cancellando la cartella <Code>.data/</Code>.
+          </p>
+        </Section>
+
         {/* ==================== MODALITÀ ==================== */}
         <Section title="Scegli come studiare">
           <p>
@@ -61,7 +107,7 @@ export default function InfoPage() {
             personalizzare l'esperienza in base alle tue esigenze.
           </p>
 
-          <h3 className="text-[16px] font-semibold">Modalità di risposta</h3>
+          <h3 id="risposta" className="text-[16px] font-semibold">Modalità di risposta</h3>
           <p>
             Scegli il tono con cui l'assistente ti risponde:
           </p>
@@ -81,7 +127,7 @@ export default function InfoPage() {
             </li>
           </ul>
 
-          <h3 className="mt-5 text-[16px] font-semibold">Contesto giuridico</h3>
+          <h3 id="contesto" className="mt-5 text-[16px] font-semibold">Contesto giuridico</h3>
           <p>
             Decidi quali fonti di diritto considerare:
           </p>
@@ -176,11 +222,12 @@ export default function InfoPage() {
             </li>
           </ol>
           <p className="mt-2">
-            Quando possibile, IusMente cerca informazioni aggiornate su
-            portali normativi italiani (come Normattiva e Gazzetta Ufficiale)
-            per ancorare le risposte a fonti reali. Questo non è sempre
-            possibile, ad esempio se la tua domanda è molto breve o se hai
-            selezionato l'ambito internazionale.
+            In **modalità Online**, IusMente cerca prima nell'indice locale
+            dei codici scaricati (keyword index TF-IDF del Codice Civile e
+            Penale). Se l'indice non ha risultati, interroga Tavily su
+            portali normativi (Normattiva, Gazzetta Ufficiale). In **modalità
+            Locale (Ollama)**, tutto avviene sul tuo computer: nessuna
+            connessione internet necessaria.
           </p>
           <p className="mt-2">
             Alla fine di ogni risposta trovi l'elenco delle fonti consultate,
@@ -201,9 +248,10 @@ export default function InfoPage() {
               al momento e non vengono conservati sul server.
             </li>
             <li>
-              <strong>Domande</strong> — vengono inviate ai servizi AI
-              (Google Gemini, Groq Cloud) e a Tavily per la ricerca web,
-              secondo i termini di servizio di ciascun fornitore.
+              <strong>Domande</strong> — in modalità Online vengono inviate
+              ai servizi AI (Google Gemini, Groq Cloud) e a Tavily per la
+              ricerca web. In modalità Locale (Ollama) <strong>nessun dato
+              lascia il tuo computer</strong>.
             </li>
             <li>
               <strong>Cookie</strong> — IusMente non utilizza cookie di
@@ -219,7 +267,7 @@ export default function InfoPage() {
             <li>Le sentenze citate sono plausibili ma potrebbero non corrispondere a sentenze reali. Usale come spunto di studio, non come riferimento.</li>
             <li>La legge cambia nel tempo: un articolo citato potrebbe essere stato modificato o abrogato.</li>
             <li>I PDF con scansioni (immagini, non testo selezionabile) non possono essere letti.</li>
-            <li>Il servizio gratuito di Gemini ha un limite giornaliero di richieste. Se lo raggiungi, ti verrà chiesto di riprovare il giorno dopo.</li>
+            <li>Il servizio gratuito di Gemini ha un limite giornaliero di richieste. Se lo raggiungi, passa alla modalità Locale (Ollama) o riprova il giorno dopo.</li>
           </ul>
         </Section>
 
@@ -230,7 +278,8 @@ export default function InfoPage() {
           </p>
           <p>
             Si basa sui modelli Gemini di Google AI, Llama di Meta via Groq Cloud,
-            e sulla ricerca web di Tavily. Le icone sono di{' '}
+            Ollama per la modalità locale, e sulla ricerca web di Tavily.
+            Le icone sono di{' '}
             <a href="https://lucide.dev" className="text-[#0071e3] hover:underline" target="_blank" rel="noopener noreferrer">Lucide</a>.
           </p>
         </Section>
@@ -245,9 +294,9 @@ export default function InfoPage() {
   )
 }
 
-function Section({ title, children }) {
+function Section({ id, title, children }) {
   return (
-    <section className="mt-10">
+    <section id={id} className="mt-10">
       <h2 className="text-[20px] font-semibold tracking-tight sm:text-[22px]">{title}</h2>
       <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-[#3a3a3c] dark:text-[#d2d2d7]">
         {children}
