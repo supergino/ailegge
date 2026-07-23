@@ -80,7 +80,7 @@ export default function InfoPage() {
             <a href="https://ollama.com" className="text-[#0071e3] hover:underline" target="_blank" rel="noopener noreferrer">Ollama</a>{' '}
             con i modelli <Code>llama3.1:8b</Code> e <Code>nomic-embed-text</Code>.
             Tutto gira sul tuo computer: generazione, embedding e ricerca
-            vettoriale. Se Ollama non è in esecuzione, IusMente fallbacka
+            vettoriale. Se Ollama non è in esecuzione, IusMente fa un fallback
             automaticamente a Gemini usando l'indice locale dei codici.
           </p>
 

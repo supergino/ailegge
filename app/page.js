@@ -26,7 +26,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 
-const APP_VERSION = '1.9.0'
+const APP_VERSION = '2.1.0'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',
@@ -678,7 +678,7 @@ export default function Home() {
         {/* Pannello contesto: scope giuridico + modalità */}
         <div className={`shrink-0 border-b ${border} ${surface}`}>
           {/* Desktop: riga riepilogo quando collassato e chat attiva */}
-          {!contestoAperto && messages.length > 0 && (
+          {!contestoAperto && (
             <button
               type="button"
               onClick={() => setContestoAperto(true)}
@@ -773,7 +773,7 @@ export default function Home() {
                 <div className="mb-0.5 flex items-center gap-1.5">
                   <Cpu className="h-3.5 w-3.5 text-[#0071e3]" strokeWidth={1.75} />
                   <span className={`text-[12px] font-semibold uppercase tracking-wider ${muted}`}>
-                    Elaborazione <span className="ml-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-500">BETA</span>
+                    Elaborazione
                   </span>
                   <a href="/info#elaborazione" className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors ${isDarkMode ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25' : 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20'}`}
                     aria-label="Info modalità" title="Confronto Online vs Locale">
@@ -870,12 +870,12 @@ export default function Home() {
                 <p className={`mt-6 text-[13px] font-medium sm:text-center ${muted}`}>Ad esempio chiedi:</p>
               )}
               <div className={`mt-3 flex flex-wrap gap-2 sm:justify-center`}>
-                {suggerite.map(suggerimento => (
+                {suggerite.map((suggerimento, idx) => (
                   <button
                     key={suggerimento}
                     type="button"
                     onClick={() => setInput(suggerimento)}
-                    className={`rounded-full px-4 py-2 text-[13px] transition-colors ${
+                    className={`${idx === 2 ? 'hidden sm:inline-flex' : ''} rounded-full px-4 py-2 text-[13px] transition-colors ${
                       isDarkMode
                         ? 'bg-[#1d1d1f] hover:bg-[#2c2c2e] border border-white/10'
                         : 'bg-white hover:bg-[#f5f5f7] border border-black/[0.08] shadow-sm'

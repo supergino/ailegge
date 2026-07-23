@@ -76,4 +76,4 @@
 - Verificato: nessuna chiave API esposta pubblicamente (`.env.local` in `.gitignore`)
 
 ---
-Versione: v1.9.0
+Versione: v2.1.0
