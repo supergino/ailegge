@@ -882,18 +882,18 @@ export default function Home() {
                   }`}>
                     <Scale className="h-[18px] w-[18px] text-[#0071e3] sm:h-5 sm:w-5" strokeWidth={1.5} />
                   </div>
-                  <h2 className="text-[20px] font-semibold tracking-tight sm:text-[26px]">
+                  <h2 className="text-[20px] font-semibold tracking-tight sm:text-[26px] text-center sm:text-left">
                     {modalitaTutor ? 'Assistenza studio' : 'Ambito ufficiale legislativo'}
                   </h2>
                 </div>
-                <p className={`mt-2 max-w-sm text-[13px] leading-relaxed sm:mx-auto sm:text-[15px] ${muted}`}>
+                <p className={`mt-2 max-w-sm text-[13px] leading-relaxed sm:mx-auto sm:text-[15px] ${muted} text-center sm:text-left`}>
                   {modalitaTutor
                     ? 'Spiegazioni, quiz e simulazioni per prepararti agli esami.'
                     : 'Risposte formali e rigorose, come davanti alla commissione.'}
                 </p>
               </div>
               {suggerite.length > 0 && (
-                <p className={`mt-6 text-[13px] font-medium sm:text-center ${muted}`}>Ad esempio chiedi:</p>
+                <p className={`mt-6 text-[13px] font-medium sm:text-center ${muted} text-center sm:text-left`}>Ad esempio chiedi:</p>
               )}
               <div className={`mt-3 flex flex-wrap gap-2 sm:justify-center`}>
                 {suggerite.map((suggerimento, idx) => (
