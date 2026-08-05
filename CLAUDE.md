@@ -35,9 +35,11 @@ app/
 │   │                       # GET ?check=1 — stato indice
 │   │                       # DELETE — elimina dati locali
 │   ├── status/route.js    # GET /api/status — verifica stato provider (incluso Tavily)
-│   └── upload/route.js    # POST /api/upload — estrazione testo PDF/TXT
+│   └── upload/route.js    # POST /api/upload — estrazione testo PDF/TXT (limite 5 MB enforce lato server)
 ├── info/page.js           # Pagina documentazione statica
 └── status/page.js         # Pagina实时 stato provider
+
+middleware.js               # Matcher /api/:path* — security headers + rate limiting in-memory per IP
 ```
 
 ## Architettura
@@ -70,9 +72,16 @@ Ogni risposta include:
 ```
 
 - Il prompt di sistema include istruzioni di formattazione (paragrafi separati da riga vuota, `-` per liste, `1.` per numerazioni, `**grassetto**` per concetti chiave)
-- Il lato client converte la formattazione in HTML semantico (`<ul>`, `<ol>`, `<strong>`, `<p>`, link cliccabili)
+- Il lato client converte la formattazione in HTML semantico (`<ul>`, `<ol>`, `<strong>`, `<p>`, link cliccabili); i link markdown `[testo](url)` sono renderizzati come elementi React con `href` validato (solo `http`/`https`), **niente `dangerouslySetInnerHTML`**
 - **Pannello contesto collassabile su mobile**: `contestoAperto` state + riga riepilogo + `ChevronDown` toggle; su desktop sempre espanso
 - **Link fonti Normattiva**: client-side `costruisciLinkFonte()` genera URL URN (`/uri-res/N2Ls?urn=...`) per articoli specifici (c.c., c.p., Cost.)
+
+### Sicurezza
+
+- **Rate limiting** in `middleware.js` (matcher `/api/:path*`): finestra fissa in-memory per chiave `metodo:path:IP`, con soglie dedicate (`/api/chat` e `/api/upload` 10/min, `/api/setup-locale` 2/min, `/api/status` 60/min). Sopra soglia → `429` + header `Retry-After`; header `X-RateLimit-Limit/Remaining` esposti. È per istanza server: su un deploy multi-istanza va spostato su un backing store condiviso.
+- **Security headers** impostati dal middleware solo sulle route `/api/*`: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`. Non è configurata una Content-Security-Policy.
+- **Upload**: il limite di 5 MB è enforce **anche lato server** (`/api/upload`) con doppio check (lunghezza base64 prima del decode, poi dimensione del buffer decodificato → `413`).
+- **XSS**: i link nelle risposte AI sono renderizzati come elementi React con `href` validato solo per schema `http`/`https` (`sanitizzaUrl()` in `page.js`); URL non sicuri (`javascript:`, `data:`, ecc.) vengono mostrati come testo non cliccabile. Nessun `dangerouslySetInnerHTML` nel progetto.
 
 ### Variabili d'ambiente necessarie
 

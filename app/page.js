@@ -407,19 +407,45 @@ export default function Home() {
     </div>
   )
 
+  // Accetta solo URL http/https; ogni altro schema (javascript:, data:, vbscript:) viene scartato.
+  const sanitizzaUrl = (url) => {
+    const raw = (url || '').trim()
+    if (!raw) return null
+    try {
+      const parsed = new URL(raw, window.location.origin)
+      return /^https?:$/.test(parsed.protocol) ? parsed.href : null
+    } catch {
+      return null
+    }
+  }
+
   const inlineFormat = (text) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g)
+    const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g)
     const out = []
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i]
+      if (!p) continue
       if (p.startsWith('**') && p.endsWith('**')) {
         out.push(<strong key={i} className="font-semibold">{p.slice(2, -2)}</strong>)
-      } else if (/\[([^\]]+)\]\(([^)]+)\)/.test(p)) {
-        const html = p.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[#0071e3] hover:underline">$1</a>')
-        out.push(<span key={i} dangerouslySetInnerHTML={{ __html: html }} />)
-      } else {
-        out.push(p)
+        continue
       }
+      const link = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+      if (link) {
+        const url = sanitizzaUrl(link[2])
+        if (url) {
+          // href validato http/https e passato come prop React (escapato, niente XSS).
+          out.push(
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-[#0071e3] hover:underline">
+              {link[1]}
+            </a>
+          )
+        } else {
+          // URL non sicuro → mostro il testo del link senza renderizzarlo come link.
+          out.push(p)
+        }
+        continue
+      }
+      out.push(p)
     }
     return out.length === 1 ? out[0] : out
   }
