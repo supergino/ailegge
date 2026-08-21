@@ -4,7 +4,7 @@ import { GoogleGenAI } from '@google/genai'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 const OR_ENDPOINT = 'https://openrouter.ai/api/v1'
 
-const TIMEOUT_MS = 8000
+const TIMEOUT_MS = 15000
 
 const fetchWithTimeout = async (url, options, ms = TIMEOUT_MS) => {
   const ctrl = new AbortController()
@@ -55,7 +55,7 @@ async function checkGroq() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'openai/gpt-oss-20b',
         messages: [{ role: 'user', content: 'OK' }],
         max_tokens: 1,
       }),
@@ -115,7 +115,7 @@ async function checkOpenRouter() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct',
+        model: 'openrouter/free',
         messages: [{ role: 'user', content: 'OK' }],
         max_tokens: 1,
       }),
@@ -203,7 +203,7 @@ async function checkNvidia() {
         messages: [{ role: 'user', content: 'OK' }],
         max_tokens: 1,
       }),
-    })
+    }, 45000)
 
     if (res.ok) {
       return { configured: true, status: 'available', label: 'Disponibile' }

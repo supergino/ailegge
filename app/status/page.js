@@ -18,8 +18,8 @@ const PROVIDERS = [
   },
   {
     id: 'groq',
-    name: 'Groq · Llama 3.1 8B',
-    role: 'Primo fallback (veloce)',
+    name: 'Groq · Qwen 27B / GPT-OSS 20B',
+    role: 'Validatore + primo fallback (veloce)',
     docs: 'console.groq.com',
   },
   {
@@ -30,7 +30,7 @@ const PROVIDERS = [
   },
   {
     id: 'openrouter',
-    name: 'OpenRouter · 4 modelli',
+    name: 'OpenRouter · Free (auto)',
     role: 'Catena fallback estremo',
     docs: 'openrouter.ai',
   },

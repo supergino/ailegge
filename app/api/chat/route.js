@@ -11,8 +11,8 @@ if (!apiKey) {
 const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' })
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
-const GROQ_MODEL = 'llama-3.3-70b-versatile'
-const GROQ_FALLBACK_MODEL = 'llama-3.1-8b-instant'
+const GROQ_MODEL = 'qwen/qwen3.6-27b'
+const GROQ_FALLBACK_MODEL = 'openai/gpt-oss-20b'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 const MAX_CONTEXT_MESSAGES = 20
 
@@ -204,24 +204,24 @@ Comportamento accademico:
     // Funzione che genera una risposta con Gemini (riusata per generazione e rigenerazione)
     const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
-    // Fallback a provider alternativi (Groq → OpenRouter) quando Gemini ha quota esaurita
+    // Fallback a provider alternativi (Groq → OpenRouter free → NVIDIA) quando Gemini
+    // fallisce per qualsiasi motivo (quota, modello inesistente, errore 5xx, rete).
     const tryFallback = async (userText, historyMessages = [], additionalContext = '') => {
       const recentMessages = historyMessages.slice(-MAX_CONTEXT_MESSAGES)
       const endpoints = []
       if (GROQ_API_KEY) endpoints.push({ name: 'Groq', url: GROQ_ENDPOINT, key: GROQ_API_KEY, model: GROQ_FALLBACK_MODEL })
-      if (process.env.NVIDIA_API_KEY) endpoints.push({ name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY, model: 'meta/llama-3.1-70b-instruct' })
       if (process.env.OPENROUTER_API_KEY) {
         const OR_BASE = { url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY }
-        const OR_MODELS = [
-          'meta-llama/llama-3.1-8b-instruct',
-          'qwen/qwen-2.5-7b-instruct',
-          'meta-llama/llama-3.2-3b-instruct',
-          'deepseek/deepseek-chat',
-        ]
+        // Router "openrouter/free": seleziona automaticamente un modello gratuito dal pool
+        // sempre disponibile di OpenRouter, senza consumare crediti. Qui (prima di NVIDIA)
+        // perché non ha cold-start e ha disponibilità massima.
+        const OR_MODELS = ['openrouter/free']
         for (const model of OR_MODELS) {
           endpoints.push({ name: `OpenRouter:${model}`, ...OR_BASE, model })
         }
       }
+      // NVIDIA per ultimo: modello 70B potente ma con cold-start di 30-60s su NIM free.
+      if (process.env.NVIDIA_API_KEY) endpoints.push({ name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY, model: 'meta/llama-3.1-70b-instruct' })
 
       if (endpoints.length === 0) return null
 
@@ -238,19 +238,32 @@ Comportamento accademico:
       for (const ep of endpoints) {
         try {
           console.log(`[IusMente/Fallback] provo ${ep.name} con ${ep.model}`)
-          const res = await fetch(ep.url, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${ep.key}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: ep.model,
-              messages: msgs,
-              temperature: isTutor ? 0.75 : 0.15,
-              response_format: { type: 'json_object' },
-            }),
-          })
+          const bodyParams = {
+            model: ep.model,
+            messages: msgs,
+            temperature: isTutor ? 0.75 : 0.15,
+          }
+          // I modelli free di OpenRouter non garantiscono il supporto a response_format JSON:
+          // lo omettiamo per il router openrouter/free così la chiamata non fallisce per 400.
+          if (ep.model !== 'openrouter/free') {
+            bodyParams.response_format = { type: 'json_object' }
+          }
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 30000)
+          let res
+          try {
+            res = await fetch(ep.url, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${ep.key}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(bodyParams),
+              signal: controller.signal,
+            })
+          } finally {
+            clearTimeout(timeout)
+          }
           if (res.ok) {
             const data = await res.json()
             const content = data?.choices?.[0]?.message?.content
@@ -322,12 +335,10 @@ Comportamento accademico:
             await sleep(delay)
             continue
           }
-          // Quota esaurita → tenta fallback
-          const isQuota = isQuotaExhausted
-          if (isQuota) {
-            const fallbackResult = await tryFallback(userText, historyMessages, additionalContext)
-            if (fallbackResult) return fallbackResult
-          }
+          // Fallback su QUALSIASI errore di generazione (quota esaurita, modello
+          // inesistente, 401, 5xx, timeout di rete) — non solo su quota esaurita.
+          const fallbackResult = await tryFallback(userText, historyMessages, additionalContext)
+          if (fallbackResult) return fallbackResult
           throw err
         }
       }
@@ -354,28 +365,35 @@ Comportamento accademico:
     }
     const fontiNormalizzate = normalizzaFonti(fonti)
 
-    // Validazione con Groq (Llama 3.3 70B) — saltata se la risposta viene già da fallback
+    // Validazione con Groq (qwen/qwen3.6-27b).
+    // - Risposta dal fallback Groq: la validiamo comunque (stesso provider, veloce)
+    //   per ridurre le allucinazioni sulla via di fallback.
+    // - Risposta da altro fallback (NVIDIA/OpenRouter): saltata.
+    // - Risposta da Gemini: validazione standard.
     let validazione = { valido: true, problemi: [], testo_revisionato: null, confidenza: null, skipped: false }
-    if (response._fallbackModel) {
-      console.log(`[IusMente/Groq] validazione saltata: risposta generata da ${response._fallbackModel}`)
-      validazione = { valido: true, problemi: [], testo_revisionato: null, confidenza: null, skipped: true }
-    } else if (GROQ_API_KEY) {
+    const isGroqFallback = response._fallbackModel === 'Groq'
+    if (isGroqFallback || (!response._fallbackModel && GROQ_API_KEY)) {
       try {
         validazione = await validaConGroq({ message, text, fonti: fontiNormalizzate, soloItalia, isTutor })
-        console.log(`[IusMente/Groq] valido=${validazione.valido}, problemi=${validazione.problemi?.length || 0}, confidenza=${validazione.confidenza}`)
+        console.log(`[IusMente/Groq] valido=${validazione.valido}, problemi=${validazione.problemi?.length || 0}, confidenza=${validazione.confidenza}${isGroqFallback ? ' (fallback Groq)' : ''}`)
       } catch (err) {
         console.error('[IusMente/Groq] validatore fallito, procedo senza:', err.message)
         validazione = { valido: true, problemi: [], testo_revisionato: null, confidenza: null, skipped: true }
       }
+    } else if (response._fallbackModel) {
+      console.log(`[IusMente/Groq] validazione saltata: risposta generata da ${response._fallbackModel}`)
+      validazione = { valido: true, problemi: [], testo_revisionato: null, confidenza: null, skipped: true }
     } else {
       console.warn('[IusMente/Groq] GROQ_API_KEY mancante, validazione disabilitata')
     }
 
-    // Se la validazione ha rilevato problemi, rigenera con Gemini passando le note
+    // Se la validazione ha rilevato problemi, rigenera con Gemini passando le note.
+    // (Solo se la risposta originaria veniva da Gemini: se siamo su fallback, Gemini è
+    // down e ri-chiuderlo non servirebbe, rischiando loop.)
     let rigenerato = false
     let testoFinale = text
     let fontiFinali = fontiNormalizzate
-    if (!validazione.valido && validazione.problemi?.length > 0) {
+    if (!validazione.valido && validazione.problemi?.length > 0 && !response._fallbackModel) {
       try {
         const contestoProblemi = validazione.problemi.map((p, i) => `${i + 1}. ${p}`).join('\n')
         const response2 = await callGemini(message, messages, contestoProblemi)

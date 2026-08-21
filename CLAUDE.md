@@ -46,9 +46,13 @@ Il sistema si basa su una **pipeline a 3 stadi** preceduta da RAG opzionale:
 
 0. **RAG** — Ricerca su indice keyword locale (prioritario) o Tavily su domini normativi (Normattiva, Gazzetta Ufficiale, Italgiure, EUR-Lex) per arricchire il contesto prima della generazione
 1. **Generazione** — Gemini 3.1 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
-2. **Validazione** — Llama 3.3 70B (Groq) verifica accuratezza giuridica e allucinazioni
-3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto
-4. **Fallback** — Se Gemini ha quota esaurita: Groq (`llama-3.1-8b-instant`) → NVIDIA (`llama-3.1-70b-instruct`) → OpenRouter (5 modelli in catena)
+2. **Validazione** — Qwen 3.6 27B (Groq, `qwen/qwen3.6-27b`) verifica accuratezza giuridica e allucinazioni. **Anche la risposta del fallback Groq viene validata** (stesso provider, bassa latenza); la rigenerazione resta riservata a Gemini.
+3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto (solo se la risposta originaria veniva da Gemini; su fallback Gemini è down e ri-chiuderlo rischierebbe loop).
+4. **Fallback** — Se Gemini fallisce per **qualsiasi** motivo (quota esaurita, modello inesistente, errore 5xx, rete), catena in ordine:
+   - **Groq** `openai/gpt-oss-20b` (veloce, LPU) — generazione + validazione
+   - **OpenRouter** `openrouter/free` (router automatico che pesca un modello gratuito dal pool sempre disponibile, **senza crediti**; `response_format` JSON omesso per compatibilità)
+   - **NVIDIA** `meta/llama-3.1-70b-instruct` (70B potente, ma cold-start 30-60s su NIM free → extrema ratio)
+   - Ogni `fetch` del fallback ha timeout **30s** (`AbortController`) per evitare hang.
 
 ### Risposta API
 
@@ -62,7 +66,7 @@ Ogni risposta include:
     "tavily": true,
     "indiceLocale": true,
     "generatore": "Gemini 3.1 Flash-Lite",
-    "validatore": "Groq llama-3.3-70b-versatile",
+    "validatore": "Groq qwen/qwen3.6-27b",
     "rigenerato": false
   },
   "validazione": { "eseguita": true, "valido": true, "problemi": [], "confidenza": 0.95, "skipped": false }
@@ -79,7 +83,7 @@ Ogni risposta include:
 | Variabile | Servizio | Ottenibile da |
 |---|---|---|
 | `GEMINI_API_KEY` | Google Gemini | ai.google.dev |
-| `GROQ_API_KEY` | Groq (Llama validatore) | console.groq.com |
+| `GROQ_API_KEY` | Groq (validatore Qwen 3.6 27B + fallback gpt-oss-20b) | console.groq.com |
 | `NVIDIA_API_KEY` | NVIDIA (fallback intermedio) | build.nvidia.com |
 | `TAVILY_API_KEY` | Tavily (RAG) | tavily.com |
 | `OPENROUTER_API_KEY` | OpenRouter (fallback) | openrouter.ai |
