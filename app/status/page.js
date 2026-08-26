@@ -62,6 +62,7 @@ function authHeaders() {
 
 export default function StatusPage() {
   const [data, setData] = useState(null)
+  const [watchdog, setWatchdog] = useState(null)
   const [loading, setLoading] = useState(true)
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState(null)
@@ -70,9 +71,19 @@ export default function StatusPage() {
     if (live) setChecking(true)
     else setLoading(true)
     setError(null)
-    fetch(`/api/status${live ? '?live=1' : ''}`, { headers: { ...authHeaders() } })
-      .then((r) => r.json())
-      .then((d) => setData(d))
+    const headers = authHeaders()
+    Promise.all([
+      fetch(`/api/status${live ? '?live=1' : ''}`, { headers })
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch('/api/watchdog?report=1', { headers })
+        .then((r) => r.json())
+        .catch(() => null),
+    ])
+      .then(([statusData, wdData]) => {
+        setData(statusData)
+        setWatchdog(wdData)
+      })
       .catch((e) => setError(e.message))
       .finally(() => {
         setLoading(false)
@@ -191,17 +202,78 @@ export default function StatusPage() {
               )
             })}
 
+            {watchdog && (
+              <div className="mt-8">
+                <h2 className="text-[20px] font-semibold tracking-tight">Watchdog modelli free</h2>
+                <p className="mt-1 text-[13px] text-[#6e6e73] dark:text-[#86868b]">
+                  Stato dei modelli della catena di fallback/validazione, dall'ultimo controllo automatico.
+                </p>
+                {!watchdog.ran ? (
+                  <p className="mt-4 rounded-2xl border border-black/[0.08] p-4 text-[13px] text-[#6e6e73] dark:border-white/10 dark:text-[#86868b]">
+                    Watchdog non ancora avviato. Configura un canale di notifica e lancia lo script di ping
+                    (es. ogni 2-3 ore) per essere avvisato quando un modello free va offline.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-4 space-y-3">
+                      {Object.entries(watchdog.results).map(([id, r]) => {
+                        const wdMeta = {
+                          available: STATUS_META.available,
+                          down: STATUS_META.error,
+                          unconfigured: STATUS_META.missing,
+                          unknown: STATUS_META.unknown,
+                        }
+                        const meta = wdMeta[r.status] || STATUS_META.unknown
+                        const labelWd =
+                          r.status === 'available'
+                            ? 'Online'
+                            : r.status === 'down'
+                              ? 'Offline'
+                              : r.status === 'unconfigured'
+                                ? 'Non configurata'
+                                : 'Sconosciuto'
+                        return (
+                          <div
+                            key={id}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-black/[0.08] p-4 dark:border-white/10"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-[14px] font-medium tracking-tight">{r.label}</p>
+                              <p className="mt-0.5 truncate text-[12px] text-[#86868b] dark:text-[#6e6e73]">{r.model}</p>
+                            </div>
+                            <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${meta.bg} ${meta.text}`}>
+                              <span className={`inline-flex h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                              {labelWd}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {watchdog.down.length > 0 && (
+                      <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-[14px] text-red-600 dark:text-red-400">
+                        ⚠️ Modelli free offline: {watchdog.down.length}. Sostituisci il modello corrispondente
+                        nelle variabili d'ambiente prima che la catena di fallback/validazione si interrompa.
+                      </div>
+                    )}
+                    <p className="mt-2 text-[12px] text-[#86868b] dark:text-[#6e6e73]">
+                      Ultimo controllo watchdog: {watchdog.at ? new Date(watchdog.at).toLocaleString('it-IT') : '—'}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className={`rounded-2xl border p-5 ${
-              (data.live ? data.live.overall : data.overall)
+              (data.live ? data.liveOverall : data.overall)
                 ? 'border-emerald-500/20 bg-emerald-500/5'
                 : 'border-amber-500/20 bg-amber-500/5'
             }`}>
               <p className={`text-[15px] font-medium ${
-                (data.live ? data.live.overall : data.overall)
+                (data.live ? data.liveOverall : data.overall)
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-amber-600 dark:text-amber-400'
               }`}>
-                {(data.live ? data.live.overall : data.overall)
+                {(data.live ? data.liveOverall : data.overall)
                   ? 'Tutti i provider sono disponibili.'
                   : 'Alcuni provider hanno limitazioni. La catena di fallback proverà i successivi.'}
               </p>

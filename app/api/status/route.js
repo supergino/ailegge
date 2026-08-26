@@ -173,6 +173,7 @@ export async function GET(req) {
     overall: overallConfigured,
     providers,
     live: live ? live.providers : null,
+    liveOverall: live ? live.overall : null,
     liveCheckedAt: live ? new Date(live.at).toISOString() : null,
     note: wantLive
       ? 'Verifica live eseguita (cache 60s, costo minimo).'
