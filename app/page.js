@@ -869,7 +869,7 @@ export default function Home() {
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
                       <span className={muted}>📖 {keywordInfo?.totale || vectorInfo?.totale} chunk</span>
                       {keywordInfo?.downloadedAt && <span className={muted}>{formatDate(keywordInfo.downloadedAt)}</span>}
-                      {keywordInfo?.downloadedAt && isOlderThan(keywordInfo.downloadedAt, 90) && <span className="text-amber-500">⚠️</span>}
+                      {keywordInfo?.downloadedAt && isOlderThan(keywordInfo.downloadedAt, 90) && <span className="font-medium text-amber-500">scaduti</span>}
                       {confirmDelete ? (
                         <span className="ml-auto flex gap-1">
                           <button type="button" onClick={handleDelete} className="rounded bg-red-500 px-2 py-1 text-[12px] font-medium text-white hover:bg-red-600">Conferma</button>
@@ -879,9 +879,15 @@ export default function Home() {
                         <button type="button" onClick={() => setConfirmDelete(true)} className="ml-auto inline-flex items-center gap-1 text-red-400 hover:text-red-500"><span>Elimina</span>✕</button>
                       )}
                     </div>
+                    {keywordInfo?.downloadedAt && isOlderThan(keywordInfo.downloadedAt, 90) && (
+                      <div className="flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[12px] leading-snug text-amber-600 dark:text-amber-400">
+                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                        <span>I codici in locale risalgono a oltre 3 mesi fa e potrebbero non essere più aggiornati. Eliminali e <strong>riscarica</strong> per averli al corrente.</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <button type="button" onClick={handleSetup} className="mt-2 w-full rounded-lg bg-[#0071e3] py-2 text-[13px] font-medium text-white hover:bg-[#0077ed]">Scarica codici</button>
+                  <button type="button" onClick={handleSetup} className="mt-2 w-full rounded-lg bg-[#0071e3] py-2 text-[13px] font-medium text-white hover:bg-[#0077ed]">Scarica codici in locale</button>
                 )}
               </div>
             </div>

@@ -14,6 +14,7 @@
 - **Header di sicurezza su tutte le rotte**: CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` e nuovo `Strict-Transport-Security` applicati anche alle pagine HTML (non solo `/api`).
 - **Link markup allowlist**: `sanitizzaUrl` accetta solo gli scheme `http(s)` su uno dei 4 domini giuridici ammessi; eventuali altri host diventano testo non cliccabile (anti-phishing).
 - **SSRF guard su Ollama**: `OLLAMA_HOST` validato a `http(s)` con blocco di indirizzi di metadata cloud/link-local.
+- **`/api/status` con verifica live on-demand**: lo stato di default resta gratuito (solo presenza chiavi), ma `?live=1` esegue un controllo reale dei provider (quota esaurita, chiave non valida, timeout, errori) con **cache server-side di 60s** per limitare costo/quota. La pagina `/status` ha il pulsante "Verifica ora" che mostra lo stato live e il dettaglio degli errori.
 - Versione aggiornata a v2.5.0
 
 ## [2026-07-22]
