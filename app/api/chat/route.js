@@ -242,16 +242,25 @@ Comportamento accademico:
       if (GROQ_API_KEY) endpoints.push({ name: 'Groq', url: GROQ_ENDPOINT, key: GROQ_API_KEY, model: GROQ_FALLBACK_MODEL })
       if (process.env.OPENROUTER_API_KEY) {
         const OR_BASE = { url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY }
-        // Router "openrouter/free": seleziona automaticamente un modello gratuito dal pool
-        // sempre disponibile di OpenRouter, senza consumare crediti. Qui (prima di NVIDIA)
-        // perché non ha cold-start e ha disponibilità massima.
-        const OR_MODELS = ['openrouter/free']
+        // Modelli NVIDIA "open" erogati da OpenRouter come FREE ENDPOINT (senza crediti,
+        // solo OPENROUTER_API_KEY). Sono preferibili al router generico "openrouter/free"
+        // perché modelli fissi, capaci e con contesto ampio (fino a 1M token).
+        // Ordine per qualità/affidabilità: nano (veloce) → 49B → super 120B (più potente).
+        const OR_MODELS = [
+          'openrouter/free',
+          'nvidia/nemotron-3-nano-30b-a3b',
+          'nvidia/llama-3.3-nemotron-super-49b-v1.5',
+          'nvidia/nemotron-3-super-120b-a12b',
+        ]
         for (const model of OR_MODELS) {
           endpoints.push({ name: `OpenRouter:${model}`, ...OR_BASE, model })
         }
       }
-      // NVIDIA per ultimo: modello 70B potente ma con cold-start di 30-60s su NIM free.
-      if (process.env.NVIDIA_API_KEY) endpoints.push({ name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY, model: 'meta/llama-3.1-70b-instruct' })
+      // NVIDIA NIM (diretto) per ultimo: modello potente ma con cold-start di 30-60s su
+      // NIM free. Il modello è configurabile via NVIDIA_MODEL; il default è ora un modello
+      // attivo su NVIDIA NIM ("meta/llama-3.1-70b-instruct" è stato rimosso -> 410).
+      const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/nemotron-3-super-120b-a12b'
+      if (process.env.NVIDIA_API_KEY) endpoints.push({ name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY, model: NVIDIA_MODEL })
 
       if (endpoints.length === 0) return null
 

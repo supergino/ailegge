@@ -24,7 +24,7 @@ const PROVIDERS = [
   },
   {
     id: 'nvidia',
-    name: 'NVIDIA · Llama 3.1 70B',
+    name: 'NVIDIA · Nemotron 3 Super 120B',
     role: 'Secondo fallback (potente)',
     docs: 'build.nvidia.com',
   },
@@ -42,6 +42,7 @@ const STATUS_META = {
   quota_exhausted: { dot: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
   invalid_key: { dot: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
   no_credits: { dot: 'bg-amber-500', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
+  model_gone: { dot: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
   timeout: { dot: 'bg-amber-500', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
   error: { dot: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
   missing: { dot: 'bg-gray-400', bg: 'bg-gray-400/10', text: 'text-gray-500 dark:text-gray-400' },

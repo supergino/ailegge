@@ -93,6 +93,8 @@ async function checkOpenRouter() {
   }
 }
 
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/nemotron-3-super-120b-a12b'
+
 async function checkNvidia() {
   const key = process.env.NVIDIA_API_KEY
   if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
@@ -100,11 +102,14 @@ async function checkNvidia() {
     const res = await fetchWithTimeout('https://integrate.api.nvidia.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'meta/llama-3.1-70b-instruct', messages: [{ role: 'user', content: 'OK' }], max_tokens: 1 }),
+      body: JSON.stringify({ model: NVIDIA_MODEL, messages: [{ role: 'user', content: 'OK' }], max_tokens: 1 }),
     }, 30000)
     if (res.ok) return { configured: true, status: 'available', label: 'Disponibile' }
     if (res.status === 429) return { configured: true, status: 'quota_exhausted', label: 'Quota esaurita', detail: 'Limite NVIDIA.' }
     if (res.status === 401 || res.status === 403) return { configured: true, status: 'invalid_key', label: 'Chiave non valida', detail: 'NVIDIA_API_KEY errata.' }
+    if (res.status === 404 || res.status === 410) {
+      return { configured: true, status: 'model_gone', label: 'Modello rimosso', detail: `Il modello "${NVIDIA_MODEL}" non è più disponibile su NVIDIA NIM. Imposta NVIDIA_MODEL su un modello attivo.` }
+    }
     return { configured: true, status: 'error', label: `HTTP ${res.status}` }
   } catch (err) {
     if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout (cold-start)', detail: 'NVIDIA NIM può impiegare 30-60s al primo avvio.' }

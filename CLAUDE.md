@@ -52,8 +52,8 @@ Il sistema si basa su una **pipeline a 3 stadi** preceduta da RAG opzionale:
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto (solo se la risposta originaria veniva da Gemini; su fallback Gemini è down e ri-chiuderlo rischierebbe loop).
 4. **Fallback** — Se Gemini fallisce per **qualsiasi** motivo (quota esaurita, modello inesistente, errore 5xx, rete), catena in ordine:
    - **Groq** `openai/gpt-oss-20b` (veloce, LPU) — generazione + validazione
-   - **OpenRouter** `openrouter/free` (router automatico che pesca un modello gratuito dal pool sempre disponibile, **senza crediti**; `response_format` JSON omesso per compatibilità)
-   - **NVIDIA** `meta/llama-3.1-70b-instruct` (70B potente, ma cold-start 30-60s su NIM free → extrema ratio)
+   - **OpenRouter** modelli NVIDIA "open" come **free endpoint** (solo `OPENROUTER_API_KEY`, **senza crediti**); ordine: `openrouter/free` → `nvidia/nemotron-3-nano-30b-a3b` → `nvidia/llama-3.3-nemotron-super-49b-v1.5` → `nvidia/nemotron-3-super-120b-a12b`. `response_format` JSON omesso solo per `openrouter/free`, applicato agli altri (graceful 400 → passa al modello successivo).
+   - **NVIDIA** NIM diretto `nvidia/llama-3.3-nemotron-super-49b-v1.5` (configurabile via `NVIDIA_MODEL`, default aggiornato; cold-start 30-60s su NIM free → extrema ratio)
    - Ogni `fetch` del fallback ha timeout **30s** (`AbortController`) per evitare hang.
 
 ### Risposta API
