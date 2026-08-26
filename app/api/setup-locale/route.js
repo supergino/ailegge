@@ -53,6 +53,30 @@ async function fetchCodice(codice) {
   return htmlToText(html)
 }
 
+// M4/HIGH 3: l'endpoint di download (job pesante) e DELETE (distruttivo) sono
+// protetti da un token opzionale (APP_API_KEY, alias SETUP_API_KEY). Se non impostato
+// restano aperti (uso locale single-user); se impostato serve il token. Le richieste
+// da localhost sono sempre ammesse (tipico uso locale di questo strumento).
+// Il gating centralizzato è anche in middleware.js (APP_API_KEY).
+function isLocalhost(req) {
+  const ip = req.ip || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || ''
+  return ['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost'].includes(ip)
+}
+
+const REQUIRED_KEY = process.env.APP_API_KEY || process.env.SETUP_API_KEY
+
+function authorized(req, searchParams) {
+  if (!REQUIRED_KEY) return true
+  if (isLocalhost(req)) return true
+  const auth = req.headers.get('authorization') || ''
+  if (auth === `Bearer ${REQUIRED_KEY}`) return true
+  if (searchParams.get('token') === REQUIRED_KEY || searchParams.get('key') === REQUIRED_KEY) return true
+  return false
+}
+
+// HIGH 3: single-flight lock per evitare build concorrenti sugli stessi file.
+let buildInProgress = false
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url)
   if (searchParams.get('check') === '1') {
@@ -65,6 +89,15 @@ export async function GET(req) {
       ollama,
     })
   }
+
+  if (!authorized(req, searchParams)) {
+    return NextResponse.json({ error: 'Non autorizzato. Configura APP_API_KEY o esegui da localhost.' }, { status: 401 })
+  }
+
+  if (buildInProgress) {
+    return NextResponse.json({ error: 'Indicizzazione già in corso. Riprova tra poco.' }, { status: 429 })
+  }
+  buildInProgress = true
 
   const encoder = new TextEncoder()
 
@@ -129,6 +162,7 @@ export async function GET(req) {
       } catch (err) {
         send({ type: 'error', message: `Errore: ${err.message}` })
       } finally {
+        buildInProgress = false
         controller.close()
       }
     },
@@ -143,7 +177,13 @@ export async function GET(req) {
   })
 }
 
-export async function DELETE() {
+export async function DELETE(req) {
+  if (!authorized(req, new URL(req.url).searchParams)) {
+    return NextResponse.json({ error: 'Non autorizzato. Configura APP_API_KEY o esegui da localhost.' }, { status: 401 })
+  }
+  if (buildInProgress) {
+    return NextResponse.json({ error: 'Impossibile eliminare: indicizzazione in corso.', deleted: false }, { status: 409 })
+  }
   try {
     deleteKeywordIndex()
     deleteVectorStore()

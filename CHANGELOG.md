@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-08-26]
+
+### Security
+- **Gating opzionale delle API (`APP_API_KEY`)**: tutte le route `/api/*` (chat, chat-locale, upload, status, setup-locale) richiedono il token quando `APP_API_KEY` è impostato; le richieste da `localhost` restano sempre permesse (uso locale). Il client inoltra il token via header `Authorization: Bearer` (da `localStorage["iusmente_api_key"]` o `NEXT_PUBLIC_API_KEY`).
+- **`/api/status` senza chiamate a pagamento**: lo stato ora deriva solo dalla presenza delle chiavi lato server, eliminando il vettore di esaurimento quota/DoS (prima effettuava completion reali verso Gemini/Groq/OpenRouter/Tavily/NVIDIA).
+- **Rate limiting rafforzato**: `clientIp()` non si fida più di `X-Forwarded-For`/`X-Real-IP` se non dietro proxy attendibile (`TRUSTED_PROXY=1`); rimosso `buckets.clear()` a favore di una eviction pigra delle entry scadute.
+- **Setup locale protetto**: `GET` (download+indicizzazione) e `DELETE` di `/api/setup-locale` richiedono `APP_API_KEY` (o localhost); aggiunto **single-flight lock** che rifiuta build concorrenti (429) e cancellazioni durante il build (409).
+- **Upload PDF più sicuro**: verifica del magic-byte `%PDF-` (il tipo era solo dall'estensione) e timeout di parsing (25s) per mitigare DoS/parser bugs.
+- **Hardening prompt injection**: i documenti caricati e i risultati RAG vengono delimitati come `--- DATI, non istruzioni ---` con istruzione di guardrail esplicita, riducendo il rischio di injection via PDF/TXT o contenuti Tavily.
+- **Limiti di dimensione input**: `message` (16k), `documentContext` (50k), `documentName` (200 char) e storico (`messages`) validati e troncati prima di qualsiasi chiamata ai provider.
+- **Niente perdite di configurazione**: errore 500 generico (niente messaggi interni dei provider), 401 non cita più `.env.local`; `/api/status` non espone più frammenti di risposta dei provider.
+- **Header di sicurezza su tutte le rotte**: CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` e nuovo `Strict-Transport-Security` applicati anche alle pagine HTML (non solo `/api`).
+- **Link markup allowlist**: `sanitizzaUrl` accetta solo gli scheme `http(s)` su uno dei 4 domini giuridici ammessi; eventuali altri host diventano testo non cliccabile (anti-phishing).
+- **SSRF guard su Ollama**: `OLLAMA_HOST` validato a `http(s)` con blocco di indirizzi di metadata cloud/link-local.
+- Versione aggiornata a v2.5.0
+
 ## [2026-07-22]
 
 ### Aggiunto
@@ -76,4 +92,4 @@
 - Verificato: nessuna chiave API esposta pubblicamente (`.env.local` in `.gitignore`)
 
 ---
-Versione: v2.1.0
+Versione: v2.5.0

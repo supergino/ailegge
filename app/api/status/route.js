@@ -1,247 +1,31 @@
 import { NextResponse } from 'next/server'
-import { GoogleGenAI } from '@google/genai'
 
-const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
-const OR_ENDPOINT = 'https://openrouter.ai/api/v1'
+// HIGH 1: /api/status NON deve effettuare chiamate a pagamento (completion) verso i
+// provider, altrimenti diventa un vettore di esaurimento quota/DoS. Restituiamo solo
+// lo stato di configurazione derivato dalla presenza delle chiavi, senza alcuna
+// richiesta di rete e senza esporre frammenti di risposta dei provider (MEDIUM 7).
 
-const TIMEOUT_MS = 15000
-
-const fetchWithTimeout = async (url, options, ms = TIMEOUT_MS) => {
-  const ctrl = new AbortController()
-  const id = setTimeout(() => ctrl.abort(), ms)
-  try {
-    const res = await fetch(url, { ...options, signal: ctrl.signal })
-    return res
-  } finally {
-    clearTimeout(id)
-  }
-}
-
-async function checkGemini() {
-  const key = process.env.GEMINI_API_KEY
+function envStatus(key) {
   if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
-  try {
-    const ai = new GoogleGenAI({ apiKey: key })
-    const res = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
-      contents: [{ role: 'user', parts: [{ text: 'OK' }] }],
-      config: { maxOutputTokens: 1 },
-    })
-    if (res?.candidates?.[0]?.content?.parts?.[0]?.text != null) {
-      return { configured: true, status: 'available', label: 'Disponibile' }
-    }
-    return { configured: true, status: 'unknown', label: 'Risposta inattesa' }
-  } catch (err) {
-    const msg = String(err?.message ?? '')
-    const status = err?.status ?? err?.code
-    if (status === 429 || status === 8 || /quota|exceeded|RESOURCE_EXHAUSTED/i.test(msg)) {
-      return { configured: true, status: 'quota_exhausted', label: 'Quota giornaliera esaurita' }
-    }
-    if (status === 401 || /API key|unauthenticated|PERMISSION_DENIED/i.test(msg)) {
-      return { configured: true, status: 'invalid_key', label: 'Chiave non valida' }
-    }
-    return { configured: true, status: 'error', label: `Errore: ${msg.slice(0, 80)}` }
-  }
-}
-
-async function checkGroq() {
-  const key = process.env.GROQ_API_KEY
-  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
-  try {
-    const res = await fetchWithTimeout(GROQ_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-oss-20b',
-        messages: [{ role: 'user', content: 'OK' }],
-        max_tokens: 1,
-      }),
-    })
-
-    const remaining = res.headers.get('x-ratelimit-remaining-requests')
-    const limit = res.headers.get('x-ratelimit-limit-requests')
-
-    if (res.ok) {
-      return {
-        configured: true,
-        status: 'available',
-        label: `Disponibile`,
-        limit: limit ? `${remaining}/${limit}` : null,
-      }
-    }
-
-    if (res.status === 429) {
-      return { configured: true, status: 'quota_exhausted', label: 'Rate limit esaurito', limit: limit ? `0/${limit}` : null }
-    }
-    if (res.status === 401) {
-      return { configured: true, status: 'invalid_key', label: 'Chiave non valida' }
-    }
-    const body = await res.text()
-    return { configured: true, status: 'error', label: `HTTP ${res.status}: ${body.slice(0, 80)}` }
-  } catch (err) {
-    if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout (8s)' }
-    return { configured: true, status: 'error', label: err.message.slice(0, 80) }
-  }
-}
-
-async function checkOpenRouter() {
-  const key = process.env.OPENROUTER_API_KEY
-  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
-  try {
-    // Auth/key endpoint gives usage stats
-    const authRes = await fetchWithTimeout(`${OR_ENDPOINT}/auth/key`, {
-      headers: { 'Authorization': `Bearer ${key}` },
-    })
-
-    let usage = null
-    let limit = null
-    if (authRes.ok) {
-      const authData = await authRes.json()
-      if (authData?.data) {
-        usage = authData.data.usage
-        limit = authData.data.limit
-        // If limit is null, it's a free key with unspecified limits
-      }
-    }
-
-    // Test completion
-    const res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openrouter/free',
-        messages: [{ role: 'user', content: 'OK' }],
-        max_tokens: 1,
-      }),
-    })
-
-    const remaining = res.headers.get('x-ratelimit-remaining-requests')
-    const rateLimit = res.headers.get('x-ratelimit-limit-requests')
-
-    if (res.ok) {
-      return {
-        configured: true,
-        status: 'available',
-        label: limit != null ? `Usati ${usage}/${limit} crediti` : 'Disponibile (crediti illimitati)',
-        limit: remaining ? `${remaining}/${rateLimit}` : null,
-      }
-    }
-
-    if (res.status === 429) {
-      return {
-        configured: true,
-        status: 'quota_exhausted',
-        label: limit != null ? `Quota esaurita (${usage}/${limit})` : 'Rate limit raggiunto',
-        limit: remaining ? `0/${rateLimit}` : null,
-      }
-    }
-    if (res.status === 401 || res.status === 403) {
-      return { configured: true, status: 'invalid_key', label: 'Chiave non valida o senza permessi' }
-    }
-    if (res.status === 402) {
-      return { configured: true, status: 'no_credits', label: 'Crediti insufficienti' }
-    }
-    const body = await res.text()
-    return { configured: true, status: 'error', label: `HTTP ${res.status}: ${body.slice(0, 80)}` }
-  } catch (err) {
-    if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout (8s)' }
-    return { configured: true, status: 'error', label: err.message.slice(0, 80) }
-  }
-}
-
-async function checkTavily() {
-  const key = process.env.TAVILY_API_KEY
-  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
-  try {
-    const res = await fetchWithTimeout('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: key,
-        query: 'OK',
-        search_depth: 'basic',
-        max_results: 1,
-      }),
-    })
-
-    if (res.ok) {
-      return { configured: true, status: 'available', label: 'Disponibile' }
-    }
-
-    if (res.status === 429) {
-      return { configured: true, status: 'quota_exhausted', label: 'Quota esaurita' }
-    }
-    if (res.status === 401) {
-      return { configured: true, status: 'invalid_key', label: 'Chiave non valida' }
-    }
-    const body = await res.text()
-    return { configured: true, status: 'error', label: `HTTP ${res.status}: ${body.slice(0, 80)}` }
-  } catch (err) {
-    if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout (8s)' }
-    return { configured: true, status: 'error', label: err.message.slice(0, 80) }
-  }
-}
-
-async function checkNvidia() {
-  const key = process.env.NVIDIA_API_KEY
-  if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
-  try {
-    const res = await fetchWithTimeout('https://integrate.api.nvidia.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'meta/llama-3.1-70b-instruct',
-        messages: [{ role: 'user', content: 'OK' }],
-        max_tokens: 1,
-      }),
-    }, 45000)
-
-    if (res.ok) {
-      return { configured: true, status: 'available', label: 'Disponibile' }
-    }
-
-    if (res.status === 429) {
-      return { configured: true, status: 'quota_exhausted', label: 'Quota esaurita' }
-    }
-    if (res.status === 401 || res.status === 403) {
-      return { configured: true, status: 'invalid_key', label: 'Chiave non valida' }
-    }
-    const body = await res.text()
-    return { configured: true, status: 'error', label: `HTTP ${res.status}: ${body.slice(0, 80)}` }
-  } catch (err) {
-    if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout (8s)' }
-    return { configured: true, status: 'error', label: err.message.slice(0, 80) }
-  }
+  return { configured: true, status: 'configured', label: 'Configurata (non verificata live)' }
 }
 
 export async function GET() {
-  const [gemini, groq, nvidia, openrouter, tavily] = await Promise.all([
-    checkGemini(),
-    checkGroq(),
-    checkNvidia(),
-    checkOpenRouter(),
-    checkTavily(),
-  ])
+  const providers = {
+    gemini: envStatus(process.env.GEMINI_API_KEY),
+    groq: envStatus(process.env.GROQ_API_KEY),
+    nvidia: envStatus(process.env.NVIDIA_API_KEY),
+    openrouter: envStatus(process.env.OPENROUTER_API_KEY),
+    tavily: envStatus(process.env.TAVILY_API_KEY),
+  }
 
-  const overall = [gemini, groq, nvidia, openrouter].every(p => p.status === 'available')
+  // "overall" indica solo che tutte le chiavi necessarie sono presenti; non implica
+  // che i provider rispondano (nessun ping a pagamento effettuato).
+  const overall = providers.gemini.configured && providers.groq.configured
 
   return NextResponse.json({
     overall,
-    providers: {
-      gemini,
-      groq,
-      nvidia,
-      openrouter,
-      tavily,
-    },
+    providers,
+    note: 'Stato basato sulla presenza delle chiavi lato server. Nessuna chiamata di rete/quota effettuata.',
   })
 }

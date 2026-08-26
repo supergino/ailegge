@@ -34,8 +34,20 @@ export async function POST(req) {
     }
 
     if (ext === 'pdf') {
+      // HIGH 4: verifica magic-byte %PDF- (il tipo era solo dall'estensione del
+      // nome file, controllato dal client). Senza questo controllo un payload
+      // arbitrario verrebbe passato al parser.
+      if (buffer.length < 5 || buffer.slice(0, 5).toString('latin1') !== '%PDF-') {
+        return NextResponse.json({ error: 'File PDF non valido (intestazione mancante).' }, { status: 400 })
+      }
       const pdf = (await import('pdf-parse')).default
-      const data = await pdf(buffer)
+      // Timeout sul parsing per evitare che un PDF malformato blocchi il processo.
+      const PARSE_TIMEOUT_MS = 25000
+      const parseWithTimeout = Promise.race([
+        pdf(buffer),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout parsing PDF')), PARSE_TIMEOUT_MS)),
+      ])
+      const data = await parseWithTimeout
       let text = data.text || ''
       const maxChars = 50000
       if (text.length > maxChars) {

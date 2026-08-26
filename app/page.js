@@ -26,7 +26,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 
-const APP_VERSION = '2.1.0'
+const APP_VERSION = '2.5.0'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',
@@ -56,6 +56,27 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]]
   }
   return a
+}
+
+// Se il server è protetto da APP_API_KEY, il client deve presentarlo. Può essere
+// impostato in localStorage ('iusmente_api_key') o iniettato a build time
+// (NEXT_PUBLIC_API_KEY, per self-host). Su localhost non serve.
+function getApiKey() {
+  if (typeof window !== 'undefined') {
+    try {
+      const ls = window.localStorage.getItem('iusmente_api_key')
+      if (ls) return ls
+    } catch {}
+  }
+  if (typeof process !== 'undefined' && process.env && process.env.NEXT_PUBLIC_API_KEY) {
+    return process.env.NEXT_PUBLIC_API_KEY
+  }
+  return null
+}
+
+function apiAuthHeaders() {
+  const k = getApiKey()
+  return k ? { Authorization: `Bearer ${k}` } : {}
 }
 
 export default function Home() {
@@ -100,7 +121,7 @@ export default function Home() {
   }, [messages, showIntro])
 
   useEffect(() => {
-    fetch('/api/setup-locale?check=1')
+    fetch('/api/setup-locale?check=1', { headers: { ...apiAuthHeaders() } })
       .then(r => r.json())
       .then(data => {
         setKeywordInfo(data.keywordIndex?.initialized ? data.keywordIndex.info : null)
@@ -212,7 +233,7 @@ export default function Home() {
         const base64 = btoa(binary)
         const res = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...apiAuthHeaders() },
           body: JSON.stringify({ fileContent: base64, fileName: file.name }),
         })
         const data = await res.json()
@@ -239,7 +260,7 @@ export default function Home() {
     setSetupProgress({ current: 0, total: 0 })
     setSetupMessage('Avvio setup...')
     try {
-      const res = await fetch('/api/setup-locale')
+      const res = await fetch('/api/setup-locale', { headers: { ...apiAuthHeaders() } })
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
@@ -284,7 +305,7 @@ export default function Home() {
 
   const handleDelete = async () => {
     try {
-      const res = await fetch('/api/setup-locale', { method: 'DELETE' })
+      const res = await fetch('/api/setup-locale', { method: 'DELETE', headers: { ...apiAuthHeaders() } })
       const data = await res.json()
       if (data.deleted) {
         setKeywordInfo(null)
@@ -300,7 +321,7 @@ export default function Home() {
     for (let tentativo = 0; tentativo <= maxRetries; tentativo++) {
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...apiAuthHeaders() },
         body: JSON.stringify(body),
       })
       const data = await res.json()
@@ -407,13 +428,19 @@ export default function Home() {
     </div>
   )
 
-  // Accetta solo URL http/https; ogni altro schema (javascript:, data:, vbscript:) viene scartato.
+  // MEDIUM 5 / LOW 9: accetta solo URL http(s) su uno dei quattro domini giuridici
+  // ammessi. Qualsiasi altro host (es. sito di phishing) viene renderizzato come
+  // testo non cliccabile, riducendo il rischio di link ingannevoli nell'output AI.
+  const LEGAL_DOMAINS = ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it', 'eur-lex.europa.eu']
   const sanitizzaUrl = (url) => {
     const raw = (url || '').trim()
     if (!raw) return null
     try {
       const parsed = new URL(raw, window.location.origin)
-      return /^https?:$/.test(parsed.protocol) ? parsed.href : null
+      if (!/^https?:$/.test(parsed.protocol)) return null
+      const host = parsed.hostname.toLowerCase()
+      const ok = LEGAL_DOMAINS.some((d) => host === d || host.endsWith('.' + d))
+      return ok ? parsed.href : null
     } catch {
       return null
     }
