@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "check:models": "node scripts/check-models.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.9.0",

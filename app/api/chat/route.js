@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai'
 import { getKeywordIndex } from '../../../lib/keyword-index'
-import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS } from '../../../lib/nvidia-model.js'
+import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS } from '../../../lib/nvidia-models.mjs'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL } from '../../../lib/nvidia-model.js'
+import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL } from '../../../lib/nvidia-models.mjs'
 
 // Stato "configurazione" (gratuito, nessuna chiamata di rete/quota).
 function envStatus(key) {

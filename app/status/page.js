@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { NVIDIA_MODEL } from '../../lib/nvidia-model.js'
+import { NVIDIA_MODEL } from '../../lib/nvidia-models.mjs'
 
 const PROVIDERS = [
   {

@@ -14,12 +14,13 @@ Guida per assistenti AI quando lavorano su questo repository.
 ## Comandi
 
 ```bash
-npm run dev      # Avvia in sviluppo (localhost:3000)
-npm run build    # Build di produzione
-npm run start    # Avvia il server di produzione
+npm run dev           # Avvia in sviluppo (localhost:3000)
+npm run build         # Build di produzione
+npm run start         # Avvia il server di produzione
+npm run check:models  # Verifica REALE dei modelli LLM configurati (chiama le API)
 ```
 
-Non ci sono script di linting o test configurati al momento.
+Non ci sono script di linting configurati. `check:models` non è una test suite: interroga davvero NVIDIA/OpenRouter e fallisce (exit 1) se un modello non risponde.
 
 ## Struttura
 
@@ -53,7 +54,7 @@ Il sistema si basa su una **pipeline a 3 stadi** preceduta da RAG opzionale:
 4. **Fallback** — Se Gemini fallisce per **qualsiasi** motivo (quota esaurita, modello inesistente, errore 5xx, rete), catena in ordine:
    - **Groq** `openai/gpt-oss-20b` (veloce, LPU) — generazione + validazione
    - **OpenRouter** modelli NVIDIA "open" come **free endpoint** (solo `OPENROUTER_API_KEY`, **senza crediti**); ordine: `openrouter/free` → `nvidia/nemotron-3.5-lightning:free` → `nvidia/nemotron-3.5-super-vl:free` → `nvidia/nemotron-3-ultra-550b-a55b:free`. `response_format` JSON omesso solo per `openrouter/free`, applicato agli altri (graceful 400 → passa al modello successivo).
-   - **NVIDIA** NIM diretto `nvidia/nemotron-3.5-super-vl-120b-a12b` (configurabile via `NVIDIA_MODEL`, default aggiornato; cold-start 30-60s su NIM free → extrema ratio). Modello centralizzato in `lib/nvidia-model.js`.
+   - **NVIDIA** NIM diretto `nvidia/nemotron-3.5-super-vl-120b-a12b` (configurabile via `NVIDIA_MODEL`, default aggiornato; cold-start 30-60s su NIM free → extrema ratio). Modello centralizzato in `lib/nvidia-models.mjs`.
    - Ogni `fetch` del fallback ha timeout **30s** (`AbortController`) per evitare hang.
 
 ### Risposta API
@@ -99,6 +100,48 @@ Ogni risposta include:
 | `OLLAMA_HOST` | Ollama (locale, default `http://localhost:11434`) | — |
 | `OLLAMA_CHAT_MODEL` | Modello chat Ollama (default `llama3.1:8b`) | — |
 | `OLLAMA_EMBEDDING_MODEL` | Modello embedding Ollama (default `nomic-embed-text`) | — |
+
+## Aggiornamento modelli LLM (procedura obbligatoria)
+
+**Trigger:** errore "Modello rimosso", HTTP 404/410/402, "modello non disponibile", oppure richiesta di aggiornare/cambiare un modello LLM. In questi casi agisci subito con la procedura, senza attendere altre istruzioni. **Non modificare a mano la pagina `/status`**: l'etichetta NVIDIA è derivata dal modello.
+
+**Fonte unica di verità:** `lib/nvidia-models.mjs` (esporta `NVIDIA_MODEL` e `OPENROUTER_NVIDIA_MODELS`).
+
+Consumatori, aggiornati automaticamente via import:
+- `app/api/chat/route.js` — catena di fallback
+- `app/api/status/route.js` — check live del provider
+- `app/status/page.js` — etichetta `NVIDIA · <modello>` derivata da `NVIDIA_MODEL`
+- `lib/watchdog.js` — monitoraggio dei modelli free
+
+### Passi
+
+1. **Diagnostica reale** (il catalogo da solo non basta):
+   ```bash
+   npm run check:models
+   ```
+   Esegue vere chat completion con `response_format: json_object`, con 3 tentativi per modello (i provider free danno 500/502 transienti).
+2. Se un modello fallisce, scegli un sostituto e verificalo **prima** di toccare il codice:
+   - Catalogo NVIDIA NIM: `GET https://integrate.api.nvidia.com/v1/models` — **attenzione**: elenca anche modelli non abilitati all'account, che in `POST /v1/chat/completions` rispondono `404 Not found for account`.
+   - Catalogo OpenRouter: `GET https://openrouter.ai/api/v1/models`.
+   - **L'account OpenRouter non ha crediti**: funzionano solo `openrouter/free` e gli endpoint `:free`; gli altri rispondono `402`.
+3. Modifica **solo** `lib/nvidia-models.mjs` (default NVIDIA e/o lista OpenRouter).
+4. Riesegui `npm run check:models` finché tutti risultano `OK`.
+5. `npm run build` deve concludersi senza errori.
+6. Aggiorna la documentazione: catena di fallback e stack in `README.md` (sezioni IT ed EN), `CHANGELOG.md`, versione in `package.json` e `app/page.js` (`APP_VERSION`).
+7. Commit e push su `main`: Vercel ridistribuisce e `/status` mostra il nuovo modello.
+
+### Vincoli noti
+- Il fallback ha **timeout 30s** per chiamata: preferisci modelli che rispondono entro 30s (in caso di cold start, usa un modello più piccolo).
+- `response_format: { type: 'json_object' }` è inviato a tutti tranne `openrouter/free`; il sostituto deve supportarlo (verificato da `check:models`).
+- `NVIDIA_MODEL` come variabile d'ambiente (es. su Vercel) **ha precedenza** sul default: se l'errore persiste online, verifica che la env var non punti a un modello rimosso.
+- I 500/502 dei provider free sono spesso transienti: non cambiare modello al primo errore, usa i retry.
+
+### Checklist rapida
+- [ ] `lib/nvidia-models.mjs` aggiornato
+- [ ] `npm run check:models` → tutto `OK`
+- [ ] `npm run build` → successo
+- [ ] README + CHANGELOG + versione aggiornati
+- [ ] commit + push
 
 ## Convenzioni di codice
 
