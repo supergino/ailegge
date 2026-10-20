@@ -110,7 +110,7 @@ e si ottiene una risposta generata dall'AI con riferimenti legali.
 | **Modalità di risposta doppia** | Scegli tra **Tutor** (empatico, spiegazioni, quiz) o **Professore** (formale, rigoroso, livello d'esame) |
 | **Filtro giurisdizionale** | Limita alla legge italiana sola o include UE e internazionale (TFEU, CEDU, CGUE) |
 | **Pipeline anti-allucinazioni** | Gemini genera JSON strutturato → Qwen 3.6 27B (Groq) valida (valida anche il fallback Groq) → rigenerazione automatica se vengono trovati problemi |
-| **Catena di fallback automatica** | Gemini → Groq gpt-oss-20b (veloce) → OpenRouter `openrouter/free` (sempre disponibile, senza crediti) → NVIDIA `nvidia/llama-3.3-nemotron-super-49b-v1.5` (potente, ultima risorsa). Si attiva su **qualsiasi** errore di Gemini, non solo su quota esaurita |
+| **Catena di fallback automatica** | Gemini → Groq gpt-oss-20b (veloce) → OpenRouter `openrouter/free` (sempre disponibile, senza crediti) → NVIDIA `nvidia/llama-3.3-nemotron-super-49b-v1.5` (piu' potente, ultima risorsa). Si attiva su **qualsiasi** errore di Gemini, non solo su quota esaurita |
 | **RAG su fonti giuridiche** | Tavily cerca su Normattiva, Gazzetta Ufficiale, Italgiure (e EUR-Lex) per fondare le risposte su fonti aggiornate |
 | **Indice locale di codici (keyword)** | Scarica una volta il Codice Civile e Penale da Normattiva — indice TF-IDF per ricerca per parole chiave, zero dipendenze |
 | **Modalità online + indice locale** | LLM cloud (Gemini) + ricerca locale sui codici scaricati. Nessuna chiamata esterna per domande coperti dai codici |
