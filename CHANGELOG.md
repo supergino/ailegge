@@ -5,8 +5,9 @@
 ### Corretto
 - **Fallback NVIDIA aggiornato**: `nvidia/nemotron-3-super-120b-a12b` non è più disponibile su NVIDIA NIM (404). Nuovo default `nvidia/nemotron-3.5-super-vl-120b-a12b` (verificato disponibile e compatibile con `response_format: json_object`).
 - **Catena OpenRouter free corretta**: sostituiti i modelli non più validi o a pagamento (402/404) con endpoint `:free` verificati: `nvidia/nemotron-3.5-lightning:free`, `nvidia/nemotron-3.5-super-vl:free`, `nvidia/nemotron-3-ultra-550b-a55b:free`.
-- **Modello NVIDIA centralizzato** in `lib/nvidia-models.mjs`, importato da `/api/chat`, `/api/status`, pagina `/status` e watchdog: un'unica costante da aggiornare.
-- Versione aggiornata a v2.5.1
+- **Modello NVIDIA centralizzato** in `lib/ai-models.mjs` (insieme a Gemini), importato da `/api/chat`, `/api/chat-locale`, `/api/status`, pagina `/status`, `/info`, footer e watchdog: un'unica costante da aggiornare.
+- **Gemini aggiornato** da `gemini-3.1-flash-lite` a `gemini-3.5-flash-lite`: generazione più recente, stessi limiti token (1.048.576 input / 65.536 output), risposta verificata con `responseSchema` (~1,5s).
+- Versione aggiornata a v2.5.2
 
 ### Aggiunto
 - **`npm run check:models`**: verifica reale dei modelli LLM (chat completion con `response_format: json_object`, 3 tentativi per assorbire i 500/502 transienti). Exit code 1 se un modello non risponde.

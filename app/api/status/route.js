@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL } from '../../../lib/nvidia-models.mjs'
+import { GEMINI_MODEL, NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL } from '../../../lib/ai-models.mjs'
 
 // Stato "configurazione" (gratuito, nessuna chiamata di rete/quota).
 function envStatus(key) {
@@ -32,7 +32,7 @@ async function checkGemini() {
     const { GoogleGenAI } = await import('@google/genai')
     const ai = new GoogleGenAI({ apiKey: key })
     const res = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
+      model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: 'OK' }] }],
       config: { maxOutputTokens: 1 },
     })

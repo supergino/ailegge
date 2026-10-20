@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { generateResponse, generateEmbedding, getChatModel } from '../../../lib/local-llm'
 import { getVectorStore } from '../../../lib/vector-store'
 import { getKeywordIndex } from '../../../lib/keyword-index'
+import { GEMINI_MODEL, GEMINI_MODEL_LABEL } from '../../../lib/ai-models.mjs'
 
 const SCORE_THRESHOLD = 0.5
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY
@@ -122,7 +123,7 @@ export async function POST(req) {
           const { GoogleGenAI, Type } = await import('@google/genai')
           const ai = new GoogleGenAI({ apiKey: geminiKey })
           const res = await ai.models.generateContent({
-            model: 'gemini-3.1-flash-lite',
+            model: GEMINI_MODEL,
             contents: [{ role: 'user', parts: [{ text: message }] }],
             config: {
               systemInstruction: systemPrompt,
@@ -139,7 +140,7 @@ export async function POST(req) {
             },
           })
           responseText = res.candidates?.[0]?.content?.parts?.[0]?.text || ''
-          generatoreUsato = 'Gemini 3.1 Flash-Lite (fallback, indice locale)'
+          generatoreUsato = `${GEMINI_MODEL_LABEL} (fallback, indice locale)`
         } catch (geminiErr) {
           console.error('[IusMente/Locale] Ollama+Gemini fallito:', geminiErr.message)
           return NextResponse.json({
@@ -188,7 +189,7 @@ export async function POST(req) {
         const { GoogleGenAI, Type } = await import('@google/genai')
         const ai = new GoogleGenAI({ apiKey: geminiKey })
         const res = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-lite',
+          model: GEMINI_MODEL,
           contents: [{ role: 'user', parts: [{ text: message }] }],
           config: {
             systemInstruction: systemPromptCloud,
@@ -205,7 +206,7 @@ export async function POST(req) {
           },
         })
         responseText = res.candidates?.[0]?.content?.parts?.[0]?.text || ''
-        generatoreUsato = tavilyContext ? 'Gemini 3.1 Flash-Lite + Tavily (switch automatico da Locale)' : 'Gemini 3.1 Flash-Lite (switch automatico da Locale)'
+        generatoreUsato = tavilyContext ? `${GEMINI_MODEL_LABEL} + Tavily (switch automatico da Locale)` : `${GEMINI_MODEL_LABEL} (switch automatico da Locale)`
         fontiLocali = [{ nome: 'Ricerca cloud (domanda fuori dall\'indice locale)', sito: 'normattiva.it' }]
       } catch (geminiErr) {
         console.error('[IusMente/Locale] Fallback cloud fallito:', geminiErr.message)

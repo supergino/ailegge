@@ -48,13 +48,13 @@ middleware.js               # Matcher /api/:path* — security headers + rate li
 Il sistema si basa su una **pipeline a 3 stadi** preceduta da RAG opzionale:
 
 0. **RAG** — Ricerca su indice keyword locale (prioritario) o Tavily su domini normativi (Normattiva, Gazzetta Ufficiale, Italgiure, EUR-Lex) per arricchire il contesto prima della generazione
-1. **Generazione** — Gemini 3.1 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
+1. **Generazione** — Gemini 3.5 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
 2. **Validazione** — Qwen 3.6 27B (Groq, `qwen/qwen3.6-27b`) verifica accuratezza giuridica e allucinazioni. **Anche la risposta del fallback Groq viene validata** (stesso provider, bassa latenza); la rigenerazione resta riservata a Gemini.
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto (solo se la risposta originaria veniva da Gemini; su fallback Gemini è down e ri-chiuderlo rischierebbe loop).
 4. **Fallback** — Se Gemini fallisce per **qualsiasi** motivo (quota esaurita, modello inesistente, errore 5xx, rete), catena in ordine:
    - **Groq** `openai/gpt-oss-20b` (veloce, LPU) — generazione + validazione
    - **OpenRouter** modelli NVIDIA "open" come **free endpoint** (solo `OPENROUTER_API_KEY`, **senza crediti**); ordine: `openrouter/free` → `nvidia/nemotron-3.5-lightning:free` → `nvidia/nemotron-3.5-super-vl:free` → `nvidia/nemotron-3-ultra-550b-a55b:free`. `response_format` JSON omesso solo per `openrouter/free`, applicato agli altri (graceful 400 → passa al modello successivo).
-   - **NVIDIA** NIM diretto `nvidia/nemotron-3.5-super-vl-120b-a12b` (configurabile via `NVIDIA_MODEL`, default aggiornato; cold-start 30-60s su NIM free → extrema ratio). Modello centralizzato in `lib/nvidia-models.mjs`.
+   - **NVIDIA** NIM diretto `nvidia/nemotron-3.5-super-vl-120b-a12b` (configurabile via `NVIDIA_MODEL`, default aggiornato; cold-start 30-60s su NIM free → extrema ratio). Modello centralizzato in `lib/ai-models.mjs`.
    - Ogni `fetch` del fallback ha timeout **30s** (`AbortController`) per evitare hang.
 
 ### Risposta API
@@ -68,7 +68,7 @@ Ogni risposta include:
   "modelli": {
     "tavily": true,
     "indiceLocale": true,
-    "generatore": "Gemini 3.1 Flash-Lite",
+    "generatore": "Gemini 3.5 Flash-Lite",
     "validatore": "Groq qwen/qwen3.6-27b",
     "rigenerato": false
   },
@@ -105,12 +105,15 @@ Ogni risposta include:
 
 **Trigger:** errore "Modello rimosso", HTTP 404/410/402, "modello non disponibile", oppure richiesta di aggiornare/cambiare un modello LLM. In questi casi agisci subito con la procedura, senza attendere altre istruzioni. **Non modificare a mano la pagina `/status`**: l'etichetta NVIDIA è derivata dal modello.
 
-**Fonte unica di verità:** `lib/nvidia-models.mjs` (esporta `NVIDIA_MODEL` e `OPENROUTER_NVIDIA_MODELS`).
+**Fonte unica di verità:** `lib/ai-models.mjs` (esporta `GEMINI_MODEL`, `GEMINI_MODEL_LABEL`, `NVIDIA_MODEL` e `OPENROUTER_NVIDIA_MODELS`).
 
 Consumatori, aggiornati automaticamente via import:
-- `app/api/chat/route.js` — catena di fallback
-- `app/api/status/route.js` — check live del provider
-- `app/status/page.js` — etichetta `NVIDIA · <modello>` derivata da `NVIDIA_MODEL`
+- `app/api/chat/route.js` — generazione Gemini + catena di fallback
+- `app/api/chat-locale/route.js` — fallback Gemini della modalità locale
+- `app/api/status/route.js` — check live dei provider
+- `app/status/page.js` — etichette `Gemini · <modello>` e `NVIDIA · <modello>`
+- `app/page.js` — badge modello nel footer
+- `app/info/page.js` — documentazione
 - `lib/watchdog.js` — monitoraggio dei modelli free
 
 ### Passi
@@ -124,11 +127,17 @@ Consumatori, aggiornati automaticamente via import:
    - Catalogo NVIDIA NIM: `GET https://integrate.api.nvidia.com/v1/models` — **attenzione**: elenca anche modelli non abilitati all'account, che in `POST /v1/chat/completions` rispondono `404 Not found for account`.
    - Catalogo OpenRouter: `GET https://openrouter.ai/api/v1/models`.
    - **L'account OpenRouter non ha crediti**: funzionano solo `openrouter/free` e gli endpoint `:free`; gli altri rispondono `402`.
-3. Modifica **solo** `lib/nvidia-models.mjs` (default NVIDIA e/o lista OpenRouter).
+3. Modifica **solo** `lib/ai-models.mjs` (Gemini, default NVIDIA e/o lista OpenRouter).
 4. Riesegui `npm run check:models` finché tutti risultano `OK`.
 5. `npm run build` deve concludersi senza errori.
 6. Aggiorna la documentazione: catena di fallback e stack in `README.md` (sezioni IT ed EN), `CHANGELOG.md`, versione in `package.json` e `app/page.js` (`APP_VERSION`).
-7. Commit e push su `main`: Vercel ridistribuisce e `/status` mostra il nuovo modello.
+7. Commit e push su `main`: Vercel ridistribuisce e `/status` mostra i nuovi modelli.
+
+### Modello primario Gemini (verifica obbligatoria)
+A ogni aggiornamento LLM verifica anche che Gemini sia il miglior modello **free** disponibile:
+- `npm run check:models` stampa i limiti del modello in uso e l'elenco dei modelli testuali con `inputTokenLimit`/`outputTokenLimit` **maggiori o uguali**.
+- Un candidato è valido solo se: `generateContent` funziona con la chiave attuale (HTTP 200), limiti token **non inferiori** a quelli attuali (oggi 1.048.576 input / 65.536 output), appartiene alla fascia gratuita (varianti **Flash-Lite**, al massimo Flash; **non** Pro) e risponde entro tempi ragionevoli.
+- Aggiorna `GEMINI_MODEL` e `GEMINI_MODEL_LABEL` in `lib/ai-models.mjs`. Non toccare le etichette nelle pagine: sono derivate.
 
 ### Vincoli noti
 - Il fallback ha **timeout 30s** per chiamata: preferisci modelli che rispondono entro 30s (in caso di cold start, usa un modello più piccolo).
@@ -137,7 +146,7 @@ Consumatori, aggiornati automaticamente via import:
 - I 500/502 dei provider free sono spesso transienti: non cambiare modello al primo errore, usa i retry.
 
 ### Checklist rapida
-- [ ] `lib/nvidia-models.mjs` aggiornato
+- [ ] `lib/ai-models.mjs` aggiornato
 - [ ] `npm run check:models` → tutto `OK`
 - [ ] `npm run build` → successo
 - [ ] README + CHANGELOG + versione aggiornati

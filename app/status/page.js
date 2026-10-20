@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { NVIDIA_MODEL } from '../../lib/nvidia-models.mjs'
+import { GEMINI_MODEL_LABEL, NVIDIA_MODEL } from '../../lib/ai-models.mjs'
 
 const PROVIDERS = [
   {
     id: 'gemini',
-    name: 'Gemini 3.1 Flash-Lite',
+    name: GEMINI_MODEL_LABEL,
     role: 'Generazione primaria',
     docs: 'ai.google.dev',
   },

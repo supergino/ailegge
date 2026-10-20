@@ -1,5 +1,6 @@
 import pkg from '../../package.json'
 import Link from 'next/link'
+import { GEMINI_MODEL_LABEL } from '../../lib/ai-models.mjs'
 
 export const metadata = {
   title: 'Informazioni — IusMente',
@@ -67,7 +68,7 @@ export default function InfoPage() {
 
           <h3 className="text-[16px] font-semibold">Online (cloud LLM + indice locale)</h3>
           <p>
-            Usa i modelli cloud (Gemini 3.1 Flash-Lite, con catena di fallback
+            Usa i modelli cloud ({GEMINI_MODEL_LABEL}, con catena di fallback
             Groq → NVIDIA → OpenRouter) per generare le risposte. Se hai
             scaricato i codici, l'indice keyword locale viene usato come
             sorgente RAG — niente connessione a Normattiva/Tavily a ogni
@@ -279,7 +280,7 @@ export default function InfoPage() {
           <div className="mt-3 space-y-1.5">
             <p className="flex items-center gap-2 text-[13px]">
               <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              Gemini 3.1 Flash-Lite — generatore primario
+              {GEMINI_MODEL_LABEL} — generatore primario
             </p>
             <p className="flex items-center gap-2 text-[13px]">
               <span className="inline-flex h-2 w-2 rounded-full bg-violet-500" />

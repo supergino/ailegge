@@ -26,7 +26,9 @@ import {
   ChevronDown,
 } from 'lucide-react'
 
-const APP_VERSION = '2.5.1'
+import { GEMINI_MODEL_LABEL } from '../lib/ai-models.mjs'
+
+const APP_VERSION = '2.5.2'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',
@@ -1164,7 +1166,7 @@ export default function Home() {
             <span className={`hidden sm:inline ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>·</span>
             <span className={`hidden sm:inline-flex items-center gap-1 text-[10px] leading-tight ${muted}`}>
               <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Gemini 3.1 Flash-Lite
+              {GEMINI_MODEL_LABEL}
             </span>
             <span className={`hidden sm:inline-flex items-center gap-1 text-[10px] leading-tight ${muted}`}>
               <span className="inline-flex h-1.5 w-1.5 rounded-full bg-violet-500" />

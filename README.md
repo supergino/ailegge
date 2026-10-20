@@ -150,7 +150,7 @@ e si ottiene una risposta generata dall'AI con riferimenti legali.
 
 Il sistema si basa su una **pipeline a più stadi** con RAG locale-first:
 
-**Generatori e fallback.** Gemini 3.1 Flash-Lite è il generatore primario. Se Gemini fallisce per *qualsiasi* motivo (quota esaurita, modello inesistente, errore 5xx, problema di rete), si attiva automaticamente la catena di fallback, in ordine di velocità/disponibilità:
+**Generatori e fallback.** Gemini 3.5 Flash-Lite è il generatore primario. Se Gemini fallisce per *qualsiasi* motivo (quota esaurita, modello inesistente, errore 5xx, problema di rete), si attiva automaticamente la catena di fallback, in ordine di velocità/disponibilità:
 1. **Groq `openai/gpt-oss-20b`** — veloce (LPU), esegue anche la validazione anti-allucinazioni.
 2. **OpenRouter `openrouter/free`** — router automatico che seleziona un modello *gratuito* dal pool sempre disponibile, **senza consumare crediti** (per questo motivo il `response_format` JSON viene omesso, per compatibilità con tutti i modelli del pool).
 3. **NVIDIA `nvidia/nemotron-3.5-super-vl-120b-a12b`** — modello 120B potente (NVIDIA NIM diretto): usato come ultima risorsa. Ogni richiesta di fallback ha un timeout di 30s per evitare hang.
@@ -179,7 +179,7 @@ La risposta del fallback Groq viene a sua volta validata da Qwen 3.6 27B (Groq);
                      │          │           │                   │
                      │          ▼           ▼                   │
                      │  ┌──────────────────────┐             │
-                     │  │ Gemini 3.1 Flash-Lite│ ← Genera      │
+                     │  │ Gemini 3.5 Flash-Lite│ ← Genera      │
                      │  │ (catena di fallback: │    risposta   │
                      │  │  Groq→OpenRouter→NV) │             │
                      │  └─────────┬────────────┘             │
@@ -310,7 +310,7 @@ Nessuna installazione richiesta.
 | Framework | Next.js 16 (App Router, Turbopack) |
 | Linguaggio | JavaScript (nessun TypeScript) |
 | UI | React 18, Tailwind CSS 3, Lucide React |
-| AI primaria | Google Gemini 3.1 Flash-Lite (`@google/genai`) |
+| AI primaria | Google Gemini 3.5 Flash-Lite (`@google/genai`) |
 | AI di fallback veloce | OpenAI gpt-oss-20b (Groq Cloud) |
 | Fallback sempre disponibile | OpenRouter `openrouter/free` (router automatico, nessun credito) |
 | AI potente (ultima risorsa) | `nvidia/nemotron-3.5-super-vl-120b-a12b` (NVIDIA API, cold-start ottimizzato) |
@@ -353,7 +353,7 @@ Genera una risposta legale (modalità online). Utilizza l'indice locale per paro
   "modelli": {
     "tavily": false,
     "indiceLocale": true,
-    "generatore": "Gemini 3.1 Flash-Lite",
+    "generatore": "Gemini 3.5 Flash-Lite",
     "validatore": "Groq qwen/qwen3.6-27b",
     "rigenerato": false
   },
@@ -628,7 +628,7 @@ and receive an AI-generated answer with legal references.
 
 The system is built on a **multi-stage pipeline** with local-first RAG:
 
-**Generators and fallback.** Gemini 3.1 Flash-Lite is the primary generator. If Gemini fails for *any* reason (quota exhausted, model nonexistent, 5xx error, network issue), the fallback chain triggers automatically, in order of speed/availability:
+**Generators and fallback.** Gemini 3.5 Flash-Lite is the primary generator. If Gemini fails for *any* reason (quota exhausted, model nonexistent, 5xx error, network issue), the fallback chain triggers automatically, in order of speed/availability:
 1. **Groq `openai/gpt-oss-20b`** — fast (LPU), also performs anti-hallucination validation.
 2. **OpenRouter `openrouter/free`** — automatic router that picks a *free* model from the always‑available pool, **no credits consumed** (hence `response_format` JSON is omitted for compatibility with all models in the pool).
 3. **NVIDIA `nvidia/nemotron-3.5-super-vl-120b-a12b`** — powerful 120B model (direct NVIDIA NIM) → used as last resort. Each fallback request has a 30s timeout to avoid hanging.
@@ -657,7 +657,7 @@ The Groq fallback response is itself validated by Qwen 3.6 27B (Groq); automatic
                      │       │           │                   │
                      │       ▼           ▼                   │
                      │  ┌──────────────────────┐             │
-                     │  │ Gemini 3.1 Flash-Lite│ ← Generate  │
+                     │  │ Gemini 3.5 Flash-Lite│ ← Generate  │
                      │  │ (fallback chain:     │    response  │
                      │  │  Groq→OpenRouter→NV) │             │
                      │  └─────────┬────────────┘             │
@@ -788,7 +788,7 @@ No installation required.
 | Framework | Next.js 16 (App Router, Turbopack) |
 | Language | JavaScript (no TypeScript) |
 | UI | React 18, Tailwind CSS 3, Lucide React |
-| Primary AI | Google Gemini 3.1 Flash-Lite (`@google/genai`) |
+| Primary AI | Google Gemini 3.5 Flash-Lite (`@google/genai`) |
 | Fast fallback AI | OpenAI gpt-oss-20b (Groq Cloud) |
 | Always-available fallback | OpenRouter `openrouter/free` (auto-router, no credits) |
 | Powerful fallback AI (last-resort) | `nvidia/nemotron-3.5-super-vl-120b-a12b` (NVIDIA API, cold-start ottimizzato) |
@@ -831,7 +831,7 @@ Generates a legal response (Online mode). Uses local keyword index as primary RA
   "modelli": {
     "tavily": false,
     "indiceLocale": true,
-    "generatore": "Gemini 3.1 Flash-Lite",
+    "generatore": "Gemini 3.5 Flash-Lite",
     "validatore": "Groq qwen/qwen3.6-27b",
     "rigenerato": false
   },

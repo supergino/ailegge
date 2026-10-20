@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai'
 import { getKeywordIndex } from '../../../lib/keyword-index'
-import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS } from '../../../lib/nvidia-models.mjs'
+import { GEMINI_MODEL, GEMINI_MODEL_LABEL, NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS } from '../../../lib/ai-models.mjs'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
@@ -348,7 +348,7 @@ Comportamento accademico:
       for (let tentativo = 0; tentativo <= MAX_RETRY; tentativo++) {
         try {
           const res = await ai.models.generateContent({
-            model: 'gemini-3.1-flash-lite',
+            model: GEMINI_MODEL,
             contents,
             config: {
               systemInstruction: systemInstruction,
@@ -381,7 +381,7 @@ Comportamento accademico:
 
     // Generazione iniziale
     const response = await callGemini(message, messages)
-    const modelloGeneratore = response._fallbackModel || 'Gemini 3.1 Flash-Lite'
+    const modelloGeneratore = response._fallbackModel || GEMINI_MODEL_LABEL
     const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? response.text ?? ''
 
     // Parsing iniziale — resiliente a campi con nomi diversi (Gemini vs fallback Groq/OpenRouter)
