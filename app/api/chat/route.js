@@ -259,7 +259,7 @@ Comportamento accademico:
       // NVIDIA NIM (diretto) per ultimo: modello potente ma con cold-start di 30-60s su
       // NIM free. Il modello è configurabile via NVIDIA_MODEL; il default è ora un modello
       // attivo su NVIDIA NIM ("meta/llama-3.1-70b-instruct" è stato rimosso -> 410).
-      const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/nemotron-3-super-120b-a12b'
+      const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/llama-3.3-nemotron-super-49b-v1.5'
       if (process.env.NVIDIA_API_KEY) endpoints.push({ name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY, model: NVIDIA_MODEL })
 
       if (endpoints.length === 0) return null

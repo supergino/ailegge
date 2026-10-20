@@ -93,7 +93,7 @@ async function checkOpenRouter() {
   }
 }
 
-const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/nemotron-3-super-120b-a12b'
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/llama-3.3-nemotron-super-49b-v1.5'
 
 async function checkNvidia() {
   const key = process.env.NVIDIA_API_KEY
