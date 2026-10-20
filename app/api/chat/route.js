@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai'
 import { getKeywordIndex } from '../../../lib/keyword-index'
+import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS } from '../../../lib/nvidia-model.js'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
@@ -246,12 +247,7 @@ Comportamento accademico:
         // solo OPENROUTER_API_KEY). Sono preferibili al router generico "openrouter/free"
         // perché modelli fissi, capaci e con contesto ampio (fino a 1M token).
         // Ordine per qualità/affidabilità: nano (veloce) → 49B → super 120B (più potente).
-        const OR_MODELS = [
-          'openrouter/free',
-          'nvidia/nemotron-3-nano-30b-a3b',
-          'nvidia/llama-3.3-nemotron-super-49b-v1.5',
-          'nvidia/nemotron-3-super-120b-a12b',
-        ]
+        const OR_MODELS = OPENROUTER_NVIDIA_MODELS
         for (const model of OR_MODELS) {
           endpoints.push({ name: `OpenRouter:${model}`, ...OR_BASE, model })
         }
@@ -259,7 +255,7 @@ Comportamento accademico:
       // NVIDIA NIM (diretto) per ultimo: modello potente ma con cold-start di 30-60s su
       // NIM free. Il modello è configurabile via NVIDIA_MODEL; il default è ora un modello
       // attivo su NVIDIA NIM ("meta/llama-3.1-70b-instruct" è stato rimosso -> 410).
-      const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/llama-3.3-nemotron-super-49b-v1.5'
+      const NVIDIA_MODEL = process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL
       if (process.env.NVIDIA_API_KEY) endpoints.push({ name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY, model: NVIDIA_MODEL })
 
       if (endpoints.length === 0) return null

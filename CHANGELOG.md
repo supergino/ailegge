@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-20]
+
+### Corretto
+- **Fallback NVIDIA aggiornato**: `nvidia/nemotron-3-super-120b-a12b` non è più disponibile su NVIDIA NIM (404). Nuovo default `nvidia/nemotron-3.5-super-vl-120b-a12b` (verificato disponibile e compatibile con `response_format: json_object`).
+- **Catena OpenRouter free corretta**: sostituiti i modelli non più validi o a pagamento (402/404) con endpoint `:free` verificati: `nvidia/nemotron-3.5-lightning:free`, `nvidia/nemotron-3.5-super-vl:free`, `nvidia/nemotron-3-ultra-550b-a55b:free`.
+- **Modello NVIDIA centralizzato** in `lib/nvidia-model.js`, importato da `/api/chat`, `/api/status`, pagina `/status` e watchdog: un'unica costante da aggiornare.
+- Versione aggiornata a v2.5.1
+
 ## [2026-08-26]
 
 ### Security

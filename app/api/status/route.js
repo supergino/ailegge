@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL } from '../../../lib/nvidia-model.js'
 
 // Stato "configurazione" (gratuito, nessuna chiamata di rete/quota).
 function envStatus(key) {
@@ -93,7 +94,7 @@ async function checkOpenRouter() {
   }
 }
 
-const NVIDIA_MODEL = process.env.NVIDIA_MODEL || 'nvidia/llama-3.3-nemotron-super-49b-v1.5'
+const NVIDIA_MODEL = process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL
 
 async function checkNvidia() {
   const key = process.env.NVIDIA_API_KEY

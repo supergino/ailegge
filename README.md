@@ -110,7 +110,7 @@ e si ottiene una risposta generata dall'AI con riferimenti legali.
 | **Modalità di risposta doppia** | Scegli tra **Tutor** (empatico, spiegazioni, quiz) o **Professore** (formale, rigoroso, livello d'esame) |
 | **Filtro giurisdizionale** | Limita alla legge italiana sola o include UE e internazionale (TFEU, CEDU, CGUE) |
 | **Pipeline anti-allucinazioni** | Gemini genera JSON strutturato → Qwen 3.6 27B (Groq) valida (valida anche il fallback Groq) → rigenerazione automatica se vengono trovati problemi |
-| **Catena di fallback automatica** | Gemini → Groq gpt-oss-20b (veloce) → OpenRouter `openrouter/free` (sempre disponibile, senza crediti) → NVIDIA `nvidia/llama-3.3-nemotron-super-49b-v1.5` (piu' potente, ultima risorsa). Si attiva su **qualsiasi** errore di Gemini, non solo su quota esaurita |
+| **Catena di fallback automatica** | Gemini → Groq gpt-oss-20b (veloce) → OpenRouter `openrouter/free` + NVIDIA `:free` (senza crediti) → NVIDIA NIM `nvidia/nemotron-3.5-super-vl-120b-a12b` (potente, ultima risorsa). Si attiva su **qualsiasi** errore di Gemini, non solo su quota esaurita |
 | **RAG su fonti giuridiche** | Tavily cerca su Normattiva, Gazzetta Ufficiale, Italgiure (e EUR-Lex) per fondare le risposte su fonti aggiornate |
 | **Indice locale di codici (keyword)** | Scarica una volta il Codice Civile e Penale da Normattiva — indice TF-IDF per ricerca per parole chiave, zero dipendenze |
 | **Modalità online + indice locale** | LLM cloud (Gemini) + ricerca locale sui codici scaricati. Nessuna chiamata esterna per domande coperti dai codici |
@@ -153,7 +153,7 @@ Il sistema si basa su una **pipeline a più stadi** con RAG locale-first:
 **Generatori e fallback.** Gemini 3.1 Flash-Lite è il generatore primario. Se Gemini fallisce per *qualsiasi* motivo (quota esaurita, modello inesistente, errore 5xx, problema di rete), si attiva automaticamente la catena di fallback, in ordine di velocità/disponibilità:
 1. **Groq `openai/gpt-oss-20b`** — veloce (LPU), esegue anche la validazione anti-allucinazioni.
 2. **OpenRouter `openrouter/free`** — router automatico che seleziona un modello *gratuito* dal pool sempre disponibile, **senza consumare crediti** (per questo motivo il `response_format` JSON viene omesso, per compatibilità con tutti i modelli del pool).
-3. **NVIDIA `nvidia/llama-3.3-nemotron-super-49b-v1.5`** — modello 49B potente, cold-start ottimizzato su NIM free: usato come ultima risorsa. Ogni richiesta di fallback ha un timeout di 30s per evitare hang.
+3. **NVIDIA `nvidia/nemotron-3.5-super-vl-120b-a12b`** — modello 120B potente (NVIDIA NIM diretto): usato come ultima risorsa. Ogni richiesta di fallback ha un timeout di 30s per evitare hang.
 
 La risposta del fallback Groq viene a sua volta validata da Qwen 3.6 27B (Groq); la rigenerazione automatica resta riservata a Gemini.
 
@@ -313,7 +313,7 @@ Nessuna installazione richiesta.
 | AI primaria | Google Gemini 3.1 Flash-Lite (`@google/genai`) |
 | AI di fallback veloce | OpenAI gpt-oss-20b (Groq Cloud) |
 | Fallback sempre disponibile | OpenRouter `openrouter/free` (router automatico, nessun credito) |
-| AI potente (ultima risorsa) | `nvidia/llama-3.3-nemotron-super-49b-v1.5` (NVIDIA API, cold-start ottimizzato) |
+| AI potente (ultima risorsa) | `nvidia/nemotron-3.5-super-vl-120b-a12b` (NVIDIA API, cold-start ottimizzato) |
 | AI locale | Ollama — `llama3.1:8b` (configurabile) |
 | Validatore AI | Qwen 3.6 27B (Groq Cloud) |
 | Ricerca RAG su cloud | Tavily Search API |
@@ -631,7 +631,7 @@ The system is built on a **multi-stage pipeline** with local-first RAG:
 **Generators and fallback.** Gemini 3.1 Flash-Lite is the primary generator. If Gemini fails for *any* reason (quota exhausted, model nonexistent, 5xx error, network issue), the fallback chain triggers automatically, in order of speed/availability:
 1. **Groq `openai/gpt-oss-20b`** — fast (LPU), also performs anti-hallucination validation.
 2. **OpenRouter `openrouter/free`** — automatic router that picks a *free* model from the always‑available pool, **no credits consumed** (hence `response_format` JSON is omitted for compatibility with all models in the pool).
-3. **NVIDIA `meta/llama-3.1-70b-instruct`** — powerful 70B model, but with 30‑60s cold‑start on NIM free → used only as last resort. Each fallback request has a 30s timeout to avoid hanging.
+3. **NVIDIA `nvidia/nemotron-3.5-super-vl-120b-a12b`** — powerful 120B model (direct NVIDIA NIM) → used as last resort. Each fallback request has a 30s timeout to avoid hanging.
 
 The Groq fallback response is itself validated by Qwen 3.6 27B (Groq); automatic regeneration is reserved for Gemini.
 
@@ -791,7 +791,7 @@ No installation required.
 | Primary AI | Google Gemini 3.1 Flash-Lite (`@google/genai`) |
 | Fast fallback AI | OpenAI gpt-oss-20b (Groq Cloud) |
 | Always-available fallback | OpenRouter `openrouter/free` (auto-router, no credits) |
-| Powerful fallback AI (last-resort) | `nvidia/llama-3.3-nemotron-super-49b-v1.5` (NVIDIA API, cold-start ottimizzato) |
+| Powerful fallback AI (last-resort) | `nvidia/nemotron-3.5-super-vl-120b-a12b` (NVIDIA API, cold-start ottimizzato) |
 | Local AI | Ollama — `llama3.1:8b` (configurable) |
 | AI Validator | Qwen 3.6 27B (Groq Cloud) |
 | Cloud RAG search | Tavily Search API |

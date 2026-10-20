@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { NVIDIA_MODEL } from '../../lib/nvidia-model.js'
 
 const PROVIDERS = [
   {
@@ -24,7 +25,7 @@ const PROVIDERS = [
   },
   {
     id: 'nvidia',
-    name: 'NVIDIA · Nemotron 3 Super 120B',
+    name: `NVIDIA · ${NVIDIA_MODEL.split('/').pop()}`,
     role: 'Secondo fallback (potente)',
     docs: 'build.nvidia.com',
   },
