@@ -49,7 +49,7 @@ Il sistema si basa su una **pipeline a 3 stadi** preceduta da RAG opzionale:
 
 0. **RAG** — Ricerca su indice keyword locale (prioritario) o Tavily su domini normativi (Normattiva, Gazzetta Ufficiale, Italgiure, EUR-Lex) per arricchire il contesto prima della generazione
 1. **Generazione** — Gemini 3.5 Flash-Lite produce risposta JSON strutturata con `text` + `fonti`
-2. **Validazione** — Qwen 3.6 27B (Groq, `qwen/qwen3.6-27b`) verifica accuratezza giuridica e allucinazioni. **Anche la risposta del fallback Groq viene validata** (stesso provider, bassa latenza); la rigenerazione resta riservata a Gemini.
+2. **Validazione** — Qwen 3.8 27B (Groq, `qwen/qwen3.8-27b`) verifica accuratezza giuridica e allucinazioni. **Anche la risposta del fallback Groq viene validata** (stesso provider, bassa latenza); la rigenerazione resta riservata a Gemini.
 3. **Rigenerazione** — Se la validazione fallisce, Gemini rigenera con le criticità come contesto (solo se la risposta originaria veniva da Gemini; su fallback Gemini è down e ri-chiuderlo rischierebbe loop).
 4. **Fallback** — Se Gemini fallisce per **qualsiasi** motivo (quota esaurita, modello inesistente, errore 5xx, rete), catena in ordine:
    - **Groq** `openai/gpt-oss-20b` (veloce, LPU) — generazione + validazione
@@ -69,7 +69,7 @@ Ogni risposta include:
     "tavily": true,
     "indiceLocale": true,
     "generatore": "Gemini 3.5 Flash-Lite",
-    "validatore": "Groq qwen/qwen3.6-27b",
+    "validatore": "Groq qwen/qwen3.8-27b",
     "rigenerato": false
   },
   "validazione": { "eseguita": true, "valido": true, "problemi": [], "confidenza": 0.95, "skipped": false }
@@ -94,7 +94,7 @@ Ogni risposta include:
 | Variabile | Servizio | Ottenibile da |
 |---|---|---|
 | `GEMINI_API_KEY` | Google Gemini | ai.google.dev |
-| `GROQ_API_KEY` | Groq (validatore Qwen 3.6 27B + fallback gpt-oss-20b) | console.groq.com |
+| `GROQ_API_KEY` | Groq (validatore Qwen 3.8 27B + fallback gpt-oss-20b) | console.groq.com |
 | `NVIDIA_API_KEY` | NVIDIA (fallback intermedio) | build.nvidia.com |
 | `TAVILY_API_KEY` | Tavily (RAG) | tavily.com |
 | `OPENROUTER_API_KEY` | OpenRouter (fallback) | openrouter.ai |

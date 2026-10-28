@@ -13,7 +13,7 @@ if (!apiKey) {
 const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' })
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
-const GROQ_MODEL = 'qwen/qwen3.6-27b'
+const GROQ_MODEL = 'qwen/qwen3.8-27b'
 const GROQ_FALLBACK_MODEL = 'openai/gpt-oss-20b'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 const MAX_CONTEXT_MESSAGES = 20
@@ -275,6 +275,17 @@ Comportamento accademico:
             messages: msgs,
             temperature: isTutor ? 0.75 : 0.15,
           }
+          // Parametri specifici Groq, solo per il primo endpoint della catena.
+          if (ep.name === 'Groq') {
+            // Tetto esplicito: il default di Groq (2048) tronca l'oggetto JSON sulle
+            // risposte lunghe e la chiamata fallisce con 400 `json_validate_failed`.
+            // Non alzarlo troppo: il tetto concorre al limite TPM (8000/min) del free tier.
+            bodyParams.max_completion_tokens = 3072
+            // gpt-oss è un modello "reasoning": a effort medio consuma ~2500 token
+            // di ragionamento prima del JSON. Con 'low' scende a ~700, riducendo
+            // latenza, consumo TPM e rischio di troncamento.
+            if (String(ep.model).includes('gpt-oss')) bodyParams.reasoning_effort = 'low'
+          }
           // I modelli free di OpenRouter non garantiscono il supporto a response_format JSON:
           // lo omettiamo per il router openrouter/free così la chiamata non fallisce per 400.
           if (ep.model !== 'openrouter/free') {
@@ -397,7 +408,7 @@ Comportamento accademico:
     }
     const fontiNormalizzate = normalizzaFonti(fonti)
 
-    // Validazione con Groq (qwen/qwen3.6-27b).
+    // Validazione con Groq (qwen/qwen3.8-27b).
     // - Risposta dal fallback Groq: la validiamo comunque (stesso provider, veloce)
     //   per ridurre le allucinazioni sulla via di fallback.
     // - Risposta da altro fallback (NVIDIA/OpenRouter): saltata.
@@ -537,7 +548,7 @@ function normalizzaFonti(fonti) {
     .filter(Boolean)
 }
 
-// Validatore: Groq (Llama 3.3 70B) verifica la risposta di Gemini per ridurre allucinazioni.
+// Validatore: Groq (Qwen 3.8 27B) verifica la risposta di Gemini per ridurre allucinazioni.
 // Restituisce { valido, problemi, confidenza, testo_revisionato }.
 async function validaConGroq({ message, text, fonti, soloItalia, isTutor }) {
   const promptValidatore = `Sei un revisore esperto di diritto italiano ed europeo. Il tuo compito è verificare se la risposta generata di seguito è accurata, coerente con le fonti citate e priva di affermazioni inventate (allucinazioni).
