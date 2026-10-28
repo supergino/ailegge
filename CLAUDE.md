@@ -80,6 +80,7 @@ Ogni risposta include:
 - Il lato client converte la formattazione in HTML semantico (`<ul>`, `<ol>`, `<strong>`, `<p>`, link cliccabili); i link markdown `[testo](url)` sono renderizzati come elementi React con `href` validato (solo `http`/`https`), **niente `dangerouslySetInnerHTML`**
 - **Pannello contesto collassabile su mobile**: `contestoAperto` state + riga riepilogo + `ChevronDown` toggle; su desktop sempre espanso
 - **Link fonti Normattiva**: client-side `costruisciLinkFonte()` genera URL URN (`/uri-res/N2Ls?urn=...`) per articoli specifici (c.c., c.p., Cost.)
+- **Fonti ufficiali centralizzate**: `lib/legal-sources.mjs` è l'unica fonte per domini, URL canonici (con `www.` dove richiesto), tabella di routing del prompt, enum dello schema Gemini e whitelist anti-phishing lato client. Per aggiungere o rimuovere una fonte si modifica solo quel file; gli id senza `www` restano i valori salvati nelle risposte.
 
 ### Sicurezza
 

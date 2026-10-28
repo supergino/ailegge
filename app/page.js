@@ -27,8 +27,9 @@ import {
 } from 'lucide-react'
 
 import { GEMINI_MODEL_LABEL } from '../lib/ai-models.mjs'
+import { LEGAL_DOMAINS, normalizzaSito, legalSourceUrl } from '../lib/legal-sources.mjs'
 
-const APP_VERSION = '2.5.2'
+const APP_VERSION = '2.8.0'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',
@@ -430,10 +431,10 @@ export default function Home() {
     </div>
   )
 
-  // MEDIUM 5 / LOW 9: accetta solo URL http(s) su uno dei quattro domini giuridici
-  // ammessi. Qualsiasi altro host (es. sito di phishing) viene renderizzato come
-  // testo non cliccabile, riducendo il rischio di link ingannevoli nell'output AI.
-  const LEGAL_DOMAINS = ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it', 'eur-lex.europa.eu']
+  // MEDIUM 5 / LOW 9: accetta solo URL http(s) su uno dei domini giuridici
+  // ufficiali (vedi lib/legal-sources.mjs). Qualsiasi altro host (es. sito di
+  // phishing) viene renderizzato come testo non cliccabile, riducendo il rischio
+  // di link ingannevoli nell'output AI.
   const sanitizzaUrl = (url) => {
     const raw = (url || '').trim()
     if (!raw) return null
@@ -561,7 +562,8 @@ export default function Home() {
   )
 
   const costruisciLinkFonte = (sito, nome) => {
-    if (sito === 'normattiva.it' || sito === 'www.normattiva.it') {
+    const id = normalizzaSito(sito)
+    if (id === 'normattiva.it') {
       const a = nome.match(/art\.?\s*(\d+)([-.\s]*(bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?\s*(c\.c\.|c\.p\.|cost\.|codice\s*civile|codice\s*penale|costituzione)?\b/i)
       if (a) {
         const art = a[1] + (a[2] ? a[2].replace(/[\s.]+/g, '-') : '')
@@ -574,11 +576,13 @@ export default function Home() {
         } else {
           urn = `urn:nir:stato:regio.decreto:1942-03-16;262~art${art}`
         }
-        return `https://www.normattiva.it/uri-res/N2Ls?urn=${urn}!vig=`
+        return `${legalSourceUrl('normattiva.it')}/uri-res/N2Ls?urn=${urn}!vig=`
       }
-      return 'https://www.normattiva.it'
+      return legalSourceUrl('normattiva.it')
     }
-    return `https://${sito.replace(/^www\./, '')}`
+    // Fonti ufficiali: URL canonico, con `www.` dove richiesto (Gazzetta Ufficiale
+    // e Italgiure non hanno record DNS sull'apex e non sarebbero raggiungibili).
+    return legalSourceUrl(id) || legalSourceUrl('normattiva.it')
   }
 
   const formatDate = (iso) => {

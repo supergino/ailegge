@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai'
 import { getKeywordIndex } from '../../../lib/keyword-index'
 import { GEMINI_MODEL, GEMINI_MODEL_LABEL, NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS } from '../../../lib/ai-models.mjs'
+import { LEGAL_DOMAINS, normalizzaSito, tavilyDomains, legalSourcesPromptRows } from '../../../lib/legal-sources.mjs'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
@@ -21,9 +22,7 @@ const TAVILY_API_KEY = process.env.TAVILY_API_KEY
 
 async function searchTavily(query, soloItalia) {
   if (!TAVILY_API_KEY) return null
-  const domains = soloItalia
-    ? ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it']
-    : ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it', 'eur-lex.europa.eu']
+  const domains = tavilyDomains(soloItalia)
   try {
     const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
@@ -67,13 +66,11 @@ STRUTTURA di ogni fonte (oggetto JSON):
 
   | Tipo di fonte                                              | sito da usare               |
   |------------------------------------------------------------|-----------------------------|
-  | Codice Civile, Codice Penale, Costituzione, altri codici   | "normattiva.it"             |
-  | Leggi speciali, D.Lgs., D.L., D.P.R., D.M., leggi ordinarie| "gazzettaufficiale.it"      |
-  | Sentenze Corte di Cassazione, massime                      | "italgiure.giustizia.it"    |
-  | Trattati UE, TFUE, TUE, regolamenti/direttive UE, CGUE, CEDU| "eur-lex.europa.eu"         |
+${legalSourcesPromptRows()}
 
 - VIETATO costruire URL completi o path specifici: restituire SOLO il dominio.
-- VIETATO usare siti diversi dai quattro elencati.
+- VIETATO usare siti diversi da quelli elencati nella tabella.
+- Usa un dominio di autorità (Garante, ANAC, AGCM, AGCOM, CONSOB, Banca d'Italia, Agenzia delle Entrate) solo per provvedimenti, delibere, circolari o linee guida di quella autorità.
 
 FORMATTAZIONE DELLA RISPOSTA (campo "text" del JSON) — OBBLIGATORIO:
 - Ogni paragrafo separato da UNA RIGA VUOTA (doppio a capo).
@@ -220,7 +217,7 @@ Comportamento accademico:
               },
               sito: {
                 type: Type.STRING,
-                enum: ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it', 'eur-lex.europa.eu'],
+                enum: LEGAL_DOMAINS,
                 description: 'Dominio del portale da cui la fonte proviene, scelto dalla tabella di routing nel system prompt',
               },
             },
@@ -524,8 +521,6 @@ Comportamento accademico:
 
 // --- Helper functions (fuori dal try/catch del POST) ---
 
-const SITES_AMMESSI = new Set(['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it', 'eur-lex.europa.eu'])
-
 function normalizzaFonti(fonti) {
   if (!Array.isArray(fonti) || fonti.length === 0) return []
   return fonti
@@ -534,7 +529,7 @@ function normalizzaFonti(fonti) {
         return { nome: f.trim(), sito: 'normattiva.it' }
       }
       if (f && typeof f === 'object' && typeof f.nome === 'string' && f.nome.trim()) {
-        const sito = SITES_AMMESSI.has(f.sito) ? f.sito : 'normattiva.it'
+        const sito = normalizzaSito(f.sito) || 'normattiva.it'
         return { nome: f.nome.trim(), sito }
       }
       return null

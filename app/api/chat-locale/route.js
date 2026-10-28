@@ -3,6 +3,7 @@ import { generateResponse, generateEmbedding, getChatModel } from '../../../lib/
 import { getVectorStore } from '../../../lib/vector-store'
 import { getKeywordIndex } from '../../../lib/keyword-index'
 import { GEMINI_MODEL, GEMINI_MODEL_LABEL } from '../../../lib/ai-models.mjs'
+import { LEGAL_DOMAINS, normalizzaSito, tavilyDomains, legalSourcesPromptRows } from '../../../lib/legal-sources.mjs'
 
 const SCORE_THRESHOLD = 0.5
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY
@@ -18,7 +19,14 @@ FONTI — OBBLIGATORIO per ogni risposta:
 
 STRUTTURA di ogni fonte (oggetto JSON):
 - "nome": testo descrittivo della fonte (es. "Art. 2043 c.c.").
-- "sito": "normattiva.it"
+- "sito": SOLO dominio, scelto da questa tabella di routing:
+
+  | Tipo di fonte                                              | sito da usare               |
+  |------------------------------------------------------------|-----------------------------|
+${legalSourcesPromptRows()}
+
+- VIETATO costruire URL completi o path specifici: restituire SOLO il dominio.
+- Usa un dominio di autorità (Garante, ANAC, AGCM, AGCOM, CONSOB, Banca d'Italia, Agenzia delle Entrate) solo per provvedimenti, delibere, circolari o linee guida di quella autorità.
 
 FORAMTTAZIONE DELLA RISPOSTA (campo "text"):
 - Ogni paragrafo separato da UNA RIGA VUOTA (doppio a capo).
@@ -133,7 +141,7 @@ export async function POST(req) {
                 type: Type.OBJECT,
                 properties: {
                   text: { type: Type.STRING },
-                  fonti: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { nome: { type: Type.STRING }, sito: { type: Type.STRING } }, required: ['nome', 'sito'] } },
+                  fonti: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { nome: { type: Type.STRING }, sito: { type: Type.STRING, enum: LEGAL_DOMAINS } }, required: ['nome', 'sito'] } },
                 },
                 required: ['text', 'fonti'],
               },
@@ -172,7 +180,7 @@ export async function POST(req) {
           const res = await fetch('https://api.tavily.com/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ api_key: TAVILY_API_KEY, query: message, search_depth: 'advanced', include_domains: ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it'], max_results: 5 }),
+            body: JSON.stringify({ api_key: TAVILY_API_KEY, query: message, search_depth: 'advanced', include_domains: tavilyDomains(true), max_results: 5 }),
           })
           if (res.ok) {
             const data = await res.json()
@@ -199,7 +207,7 @@ export async function POST(req) {
               type: Type.OBJECT,
               properties: {
                 text: { type: Type.STRING },
-                fonti: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { nome: { type: Type.STRING }, sito: { type: Type.STRING } }, required: ['nome', 'sito'] } },
+                fonti: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { nome: { type: Type.STRING }, sito: { type: Type.STRING, enum: LEGAL_DOMAINS } }, required: ['nome', 'sito'] } },
               },
               required: ['text', 'fonti'],
             },
@@ -244,7 +252,7 @@ export async function POST(req) {
 
     const fontiNormalizzate = fonti.map(f => ({
       nome: f.nome || 'Fonte non specificata',
-      sito: ['normattiva.it', 'gazzettaufficiale.it', 'italgiure.giustizia.it', 'eur-lex.europa.eu'].includes(f.sito) ? f.sito : 'normattiva.it',
+      sito: normalizzaSito(f.sito) || 'normattiva.it',
     }))
 
     return NextResponse.json({

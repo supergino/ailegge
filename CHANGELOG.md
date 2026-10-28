@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-10-28]
+
+### Corretto
+- **Link alle fonti ufficiali**: `costruisciLinkFonte` usa ora l'URL canonico con `www.`; Gazzetta Ufficiale e Italgiure non hanno record DNS sull'apex, quindi i relativi link erano rotti.
+- **CEDU non più attribuita a EUR-Lex**: le sentenze della Corte europea dei diritti dell'uomo puntano a `hudoc.echr.coe.int`; quelle della CGUE a `curia.europa.eu`.
+- **Normalizzazione dei domini**: i valori restituiti dal modello vengono normalizzati (maiuscole, `www.`, `https://`, path) e quelli non ufficiali vengono scartati.
+- Versione aggiornata a v2.8.0
+
+### Aggiunto
+- **`lib/legal-sources.mjs`**: elenco unico delle fonti istituzionali (16), usato da prompt di routing, enum dello schema, whitelist lato client, costruzione dei link e domini per Tavily. Per aggiungere una fonte si modifica solo questo file.
+- **Nuove fonti ufficiali**: Corte costituzionale, Giustizia amministrativa (Consiglio di Stato e TAR), Corte dei conti, CGUE, CEDU (HUDOC), Garante privacy, ANAC, AGCM, AGCOM, CONSOB, Banca d'Italia, Agenzia delle Entrate.
+
 ## [2026-10-20]
 
 ### Corretto
