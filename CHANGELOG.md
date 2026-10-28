@@ -10,7 +10,7 @@
 - **Fallback Groq riparato**: `openai/gpt-oss-20b` falliva a intermittenza con 400 `json_validate_failed` — il JSON veniva troncato al tetto di default di 2048 token — e la richiesta cadeva su OpenRouter (25-39s). Ora tetto esplicito `max_completion_tokens: 3072` e `reasoning_effort: "low"` (taglia ~2.500 token di ragionamento a ~700): 3/3 risposte da Groq in 2,8-5,1s. Nota: il free tier Groq ha 8.000 TPM, quindi il tetto non va alzato oltre.
 - **Pagina di stato più completa**: il controllo live di Groq verificava solo il fallback `gpt-oss-20b`, quindi un validatore ritirato (404) restava invisibile. Ora `/api/status` verifica entrambi i modelli Groq e segnala esplicitamente quale manca; il watchdog li monitora separatamente.
 - **Modelli Groq centralizzati**: `GROQ_VALIDATOR_MODEL` e `GROQ_FALLBACK_MODEL` (con label) vivono in `lib/ai-models.mjs`, condivisi da `/api/chat`, `/api/status`, pagina di stato e watchdog.
-- Versione aggiornata a v2.8.0
+- Versione aggiornata a v2.8.1
 
 ### Aggiunto
 - **`lib/legal-sources.mjs`**: elenco unico delle fonti istituzionali (16), usato da prompt di routing, enum dello schema, whitelist lato client, costruzione dei link e domini per Tavily. Per aggiungere una fonte si modifica solo questo file.
