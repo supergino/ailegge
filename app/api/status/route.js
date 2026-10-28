@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { GEMINI_MODEL, NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL } from '../../../lib/ai-models.mjs'
+import { GEMINI_MODEL, NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, GROQ_VALIDATOR_MODEL, GROQ_FALLBACK_MODEL } from '../../../lib/ai-models.mjs'
 
 // Stato "configurazione" (gratuito, nessuna chiamata di rete/quota).
 function envStatus(key) {
@@ -53,21 +53,55 @@ async function checkGemini() {
   }
 }
 
+// Groq eroga due modelli distinti: il validatore anti-allucinazione e il primo
+// fallback di generazione. Vanno verificati entrambi, altrimenti un modello
+// ritirato (404) resta invisibile alla pagina di stato.
+const GROQ_MODELS = [
+  { model: GROQ_VALIDATOR_MODEL, ruolo: 'validatore' },
+  { model: GROQ_FALLBACK_MODEL, ruolo: 'fallback' },
+]
+
+function esitoGroq(res) {
+  if (res.ok) return null
+  if (res.status === 429) return { status: 'quota_exhausted', label: 'Rate limit esaurito' }
+  if (res.status === 401 || res.status === 403) return { status: 'invalid_key', label: 'Chiave non valida' }
+  if (res.status === 404 || res.status === 410) return { status: 'model_gone', label: 'Modello rimosso' }
+  return { status: 'error', label: `HTTP ${res.status}` }
+}
+
 async function checkGroq() {
   const key = process.env.GROQ_API_KEY
   if (!key) return { configured: false, status: 'missing', label: 'Chiave non configurata' }
   try {
-    const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'openai/gpt-oss-20b', messages: [{ role: 'user', content: 'OK' }], max_tokens: 1 }),
-    })
-    const remaining = res.headers.get('x-ratelimit-remaining-requests')
-    const limit = res.headers.get('x-ratelimit-limit-requests')
-    if (res.ok) return { configured: true, status: 'available', label: 'Disponibile', limit: limit ? `${remaining}/${limit}` : null }
-    if (res.status === 429) return { configured: true, status: 'quota_exhausted', label: 'Rate limit esaurito', detail: 'Limite richieste Groq.' }
-    if (res.status === 401) return { configured: true, status: 'invalid_key', label: 'Chiave non valida', detail: 'GROQ_API_KEY errata.' }
-    return { configured: true, status: 'error', label: `HTTP ${res.status}` }
+    const esiti = await Promise.all(
+      GROQ_MODELS.map(async ({ model, ruolo }) => {
+        const res = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, messages: [{ role: 'user', content: 'OK' }], max_tokens: 1 }),
+        })
+        return { model, ruolo, res, problema: esitoGroq(res) }
+      })
+    )
+
+    const ko = esiti.find((e) => e.problema)
+    const primo = esiti[0]?.res
+    const remaining = primo?.headers.get('x-ratelimit-remaining-requests')
+    const limit = primo?.headers.get('x-ratelimit-limit-requests')
+
+    if (!ko) {
+      return { configured: true, status: 'available', label: 'Disponibile', limit: limit ? `${remaining}/${limit}` : null }
+    }
+
+    const { model, ruolo, problema, res } = ko
+    const dettaglio =
+      problema.status === 'invalid_key'
+        ? 'GROQ_API_KEY errata.'
+        : problema.status === 'model_gone'
+          ? `Il modello ${ruolo} "${model}" non è più disponibile su Groq.`
+          : `Modello ${ruolo} "${model}": ${problema.label.toLowerCase()} (HTTP ${res.status}).`
+
+    return { configured: true, status: problema.status, label: problema.label, detail: dettaglio }
   } catch (err) {
     if (err.name === 'AbortError') return { configured: true, status: 'timeout', label: 'Timeout', detail: 'Groq non risponde entro 12s.' }
     return { configured: true, status: 'error', label: err.message.slice(0, 80) }

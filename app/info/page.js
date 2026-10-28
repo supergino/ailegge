@@ -288,7 +288,7 @@ export default function InfoPage() {
             </p>
             <p className="flex items-center gap-2 text-[13px]">
               <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" />
-              Groq (Llama) · NVIDIA · OpenRouter — catena fallback
+              Groq (gpt-oss) · NVIDIA · OpenRouter — catena fallback
             </p>
             <p className="flex items-center gap-2 text-[13px]">
               <span className="inline-flex h-2 w-2 rounded-full bg-teal-500" />

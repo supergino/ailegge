@@ -106,7 +106,7 @@ Ogni risposta include:
 
 **Trigger:** errore "Modello rimosso", HTTP 404/410/402, "modello non disponibile", oppure richiesta di aggiornare/cambiare un modello LLM. In questi casi agisci subito con la procedura, senza attendere altre istruzioni. **Non modificare a mano la pagina `/status`**: l'etichetta NVIDIA è derivata dal modello.
 
-**Fonte unica di verità:** `lib/ai-models.mjs` (esporta `GEMINI_MODEL`, `GEMINI_MODEL_LABEL`, `NVIDIA_MODEL` e `OPENROUTER_NVIDIA_MODELS`).
+**Fonte unica di verità:** `lib/ai-models.mjs` (esporta `GEMINI_MODEL`, `GEMINI_MODEL_LABEL`, `NVIDIA_MODEL`, `OPENROUTER_NVIDIA_MODELS` e i due modelli Groq: `GROQ_VALIDATOR_MODEL` + `GROQ_FALLBACK_MODEL` con le rispettive label).
 
 Consumatori, aggiornati automaticamente via import:
 - `app/api/chat/route.js` — generazione Gemini + catena di fallback
@@ -128,7 +128,7 @@ Consumatori, aggiornati automaticamente via import:
    - Catalogo NVIDIA NIM: `GET https://integrate.api.nvidia.com/v1/models` — **attenzione**: elenca anche modelli non abilitati all'account, che in `POST /v1/chat/completions` rispondono `404 Not found for account`.
    - Catalogo OpenRouter: `GET https://openrouter.ai/api/v1/models`.
    - **L'account OpenRouter non ha crediti**: funzionano solo `openrouter/free` e gli endpoint `:free`; gli altri rispondono `402`.
-3. Modifica **solo** `lib/ai-models.mjs` (Gemini, default NVIDIA e/o lista OpenRouter).
+3. Modifica **solo** `lib/ai-models.mjs` (Gemini, default NVIDIA, lista OpenRouter, modelli Groq validatore/fallback).
 4. Riesegui `npm run check:models` finché tutti risultano `OK`.
 5. `npm run build` deve concludersi senza errori.
 6. Aggiorna la documentazione: catena di fallback e stack in `README.md` (sezioni IT ed EN), `CHANGELOG.md`, versione in `package.json` e `app/page.js` (`APP_VERSION`).

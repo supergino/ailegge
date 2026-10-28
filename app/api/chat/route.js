@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai'
 import { getKeywordIndex } from '../../../lib/keyword-index'
-import { GEMINI_MODEL, GEMINI_MODEL_LABEL, NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS } from '../../../lib/ai-models.mjs'
+import { GEMINI_MODEL, GEMINI_MODEL_LABEL, NVIDIA_MODEL as DEFAULT_NVIDIA_MODEL, OPENROUTER_NVIDIA_MODELS, GROQ_VALIDATOR_MODEL, GROQ_FALLBACK_MODEL } from '../../../lib/ai-models.mjs'
 import { LEGAL_DOMAINS, normalizzaSito, tavilyDomains, legalSourcesPromptRows } from '../../../lib/legal-sources.mjs'
 
 const apiKey = process.env.GEMINI_API_KEY
@@ -13,8 +13,6 @@ if (!apiKey) {
 const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' })
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY
-const GROQ_MODEL = 'qwen/qwen3.8-27b'
-const GROQ_FALLBACK_MODEL = 'openai/gpt-oss-20b'
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions'
 const MAX_CONTEXT_MESSAGES = 20
 
@@ -466,7 +464,7 @@ Comportamento accademico:
         tavily: tavilyUsato,
         indiceLocale: indiceLocaleUsato,
         generatore: modelloGeneratore,
-        validatore: GROQ_API_KEY ? `Groq ${GROQ_MODEL}` : 'non attivo',
+        validatore: GROQ_API_KEY ? `Groq ${GROQ_VALIDATOR_MODEL}` : 'non attivo',
         rigenerato,
       },
       validazione: {
@@ -587,7 +585,7 @@ Se rilevi problemi, "valido": false e descrivi ciascun problema in "problemi" in
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: GROQ_VALIDATOR_MODEL,
       messages: [
         {
           role: 'system',

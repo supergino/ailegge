@@ -8,6 +8,8 @@
 - **Normalizzazione dei domini**: i valori restituiti dal modello vengono normalizzati (maiuscole, `www.`, `https://`, path) e quelli non ufficiali vengono scartati.
 - **Validatore Groq ripristinato**: `qwen/qwen3.6-27b` non esiste più su Groq (404 `model_not_found`), quindi la doppia verifica anti-allucinazione veniva saltata in silenzio. Nuovo modello `qwen/qwen3.8-27b` (verificato con `response_format: json_object`): ~0,4-0,6s, intercetta i riferimenti inventati. Aggiornati anche watchdog e documentazione.
 - **Fallback Groq riparato**: `openai/gpt-oss-20b` falliva a intermittenza con 400 `json_validate_failed` — il JSON veniva troncato al tetto di default di 2048 token — e la richiesta cadeva su OpenRouter (25-39s). Ora tetto esplicito `max_completion_tokens: 3072` e `reasoning_effort: "low"` (taglia ~2.500 token di ragionamento a ~700): 3/3 risposte da Groq in 2,8-5,1s. Nota: il free tier Groq ha 8.000 TPM, quindi il tetto non va alzato oltre.
+- **Pagina di stato più completa**: il controllo live di Groq verificava solo il fallback `gpt-oss-20b`, quindi un validatore ritirato (404) restava invisibile. Ora `/api/status` verifica entrambi i modelli Groq e segnala esplicitamente quale manca; il watchdog li monitora separatamente.
+- **Modelli Groq centralizzati**: `GROQ_VALIDATOR_MODEL` e `GROQ_FALLBACK_MODEL` (con label) vivono in `lib/ai-models.mjs`, condivisi da `/api/chat`, `/api/status`, pagina di stato e watchdog.
 - Versione aggiornata a v2.8.0
 
 ### Aggiunto

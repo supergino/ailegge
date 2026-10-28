@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { GEMINI_MODEL_LABEL, NVIDIA_MODEL } from '../../lib/ai-models.mjs'
+import { GEMINI_MODEL_LABEL, NVIDIA_MODEL, GROQ_VALIDATOR_LABEL, GROQ_FALLBACK_LABEL } from '../../lib/ai-models.mjs'
 
 const PROVIDERS = [
   {
@@ -19,7 +19,7 @@ const PROVIDERS = [
   },
   {
     id: 'groq',
-    name: 'Groq · Qwen 27B / GPT-OSS 20B',
+    name: `Groq · ${GROQ_VALIDATOR_LABEL} / ${GROQ_FALLBACK_LABEL}`,
     role: 'Validatore + primo fallback (veloce)',
     docs: 'console.groq.com',
   },
