@@ -285,6 +285,29 @@ export default function StatusPage() {
                 ? `Ultima verifica live: ${new Date(data.liveCheckedAt).toLocaleString('it-IT')} (cache 60s).`
                 : 'Stato basato sulla presenza delle chiavi. Clicca "Verifica ora" per un controllo reale dei provider (cache 60s, costo minimo).'}
             </p>
+
+            {watchdog?.history?.length > 0 && (
+              <div className="mt-8">
+                <h2 className="text-[20px] font-semibold tracking-tight">Storico cambiamenti automatici</h2>
+                <p className="mt-1 text-[13px] text-[#6e6e73] dark:text-[#86868b]">
+                  Ultimi interventi automatici dell&apos;audit settimanale dei modelli free (max 10).
+                </p>
+                <ul className="mt-4 space-y-2">
+                  {watchdog.history.slice(0, 10).map((c, i) => (
+                    <li
+                      key={i}
+                      className="rounded-xl border border-black/[0.08] p-4 text-[13px] dark:border-white/10"
+                    >
+                      <p className="text-[#1d1d1f] dark:text-[#f5f5f7]">
+                        ♻️ {c.role}: {Array.isArray(c.from) ? c.from.join(', ') : c.from} →{' '}
+                        {Array.isArray(c.to) ? c.to.join(', ') : c.to}
+                        {c.detail ? ` (${c.detail})` : ''}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </article>

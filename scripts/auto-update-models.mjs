@@ -36,6 +36,7 @@ const CHANGELOG_FILE = path.join(ROOT, 'CHANGELOG.md')
 const PKG_FILE = path.join(ROOT, 'package.json')
 const LOCK_FILE = path.join(ROOT, 'package-lock.json')
 const PAGE_FILE = path.join(ROOT, 'app', 'page.js')
+const HISTORY_FILE = process.env.WATCHDOG_HISTORY_FILE || path.join(ROOT, 'data', 'model-changes.json')
 
 const ARGS = new Set(process.argv.slice(2))
 const APPLY = ARGS.has('--apply')
@@ -705,6 +706,8 @@ async function audit() {
   } else {
     console.log('\nNessuna sostituzione necessaria.')
   }
+
+  saveHistory(run.changes)
 }
 
 async function currentGeminiLimits(model) {
@@ -832,6 +835,16 @@ function bumpVersionAndChangelog(patches) {
 function buildProject() {
   console.log('\nBuild di verifica...')
   execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit', env: process.env })
+}
+
+function saveHistory(changes) {
+  try {
+    fs.mkdirSync(path.dirname(HISTORY_FILE), { recursive: true })
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify((changes || []).slice(0, 10), null, 2))
+    console.log(`[models] Storico cambiamenti salvato (${(changes || []).length} voci).`)
+  } catch (e) {
+    console.error('[models] salvataggio storico fallito:', e.message)
+  }
 }
 
 function rollback() {

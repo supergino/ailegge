@@ -4,7 +4,7 @@
 
 ### Cambiato
 - **Notifica Telegram settimanale sempre**: l'audit `scripts/auto-update-models.mjs` ora invia SEMPRE il riepilogo via webhook/Telegram al termine dell'audit (prima: solo se ci erano sostituzioni o errori); ogni lunedì il controllo delle LLM notifica lo stato (tutto OK / sostituzioni / intervento manuale).
-- Versione aggiornata a v3.0.1
+- Versione aggiornata a v3.1.0
 
 ### Corretto
 - **`middleware.js` → `proxy.js`**: Next.js 16 deprecava la convenzione `middleware`, con un warning a ogni avvio e build. Il file è stato rinominato e la funzione esportata è ora `proxy` (stesso contratto, runtime Node.js); rate limiting, header di sicurezza e CSP restano invariati e verificati a runtime (60 richieste `200` poi `429` su `/api/status`, CSP presente con `next start`).
@@ -25,6 +25,9 @@
 
 ### Aggiunto
 - **`scripts/test-telegram.mjs`** + script npm `npm run test:telegram`: invio automatico di messaggio di test via Telegram Bot API (richiede `WATCHDOG_TELEGRAM_TOKEN` e `WATCHDOG_TELEGRAM_CHAT_ID`); verifica presenza variabili e gestisce errore API.
+
+### Aggiunto
+- **Storico cambiamenti automatici nella pagina status**: la pagina `/status` mostra ora un storico degli ultimi interventi automatici dell'audit settimanale (max 10) con descrizione del cambiamento (ruolo: modello → sostituto). Lo script `auto-update-models.mjs` salva lo storico in `data/model-changes.json`.
 
 ## [2026-10-28]
 
