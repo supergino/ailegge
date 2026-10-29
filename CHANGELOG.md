@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-29]
+
+### Corretto
+- **`middleware.js` → `proxy.js`**: Next.js 16 deprecava la convenzione `middleware`, con un warning a ogni avvio e build. Il file è stato rinominato e la funzione esportata è ora `proxy` (stesso contratto, runtime Node.js); rate limiting, header di sicurezza e CSP restano invariati e verificati a runtime (60 richieste `200` poi `429` su `/api/status`, CSP presente con `next start`).
+- **Warning Turbopack "whole project traced"**: i path dei file dati dinamici (`DATA_DIR`, `WATCHDOG_STATE_FILE`, `tmpdir()`) non erano risolvibili staticamente, quindi il build tracciava l'intera root del progetto (15 file di progetto e `.data/keyword-index.json` finivano nell'NFT list). Aggiunti i commenti `/* turbopackIgnore: true */` in `lib/vector-store.js`, `lib/keyword-index.js` e `lib/watchdog.js`: build senza warning e NFT list ridotta (126 → 95 file, nessun file di progetto).
+- **Documentazione di sicurezza allineata al codice**: `CLAUDE.md` dichiarava header solo sulle `/api/*` e nessuna CSP; in realtà valgono su tutte le route e la CSP è attiva in produzione.
+- Versione aggiornata a v2.8.2
+
 ## [2026-10-28]
 
 ### Corretto

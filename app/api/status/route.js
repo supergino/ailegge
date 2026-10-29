@@ -11,7 +11,7 @@ function envStatus(key) {
 // Ogni chiamata reale consuma comunque una minima quota; grazie alla cache TTL, anche
 // in caso di polling frequente (o molteplici utenti) viene effettuata al massimo una
 // volta ogni LIVE_TTL_MS per istanza. Inoltre /api/status è protetta da APP_API_KEY
-// (vedi middleware) quando configurato.
+// (vedi proxy) quando configurato.
 const LIVE_TTL_MS = 60_000
 let liveCache = null // { at, providers, overall }
 

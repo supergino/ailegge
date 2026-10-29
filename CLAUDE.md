@@ -40,7 +40,7 @@ app/
 ├── info/page.js           # Pagina documentazione statica
 └── status/page.js         # Pagina实时 stato provider
 
-middleware.js               # Matcher /api/:path* — security headers + rate limiting in-memory per IP
+proxy.js                    # Matcher /:path* — security headers (CSP in prod) + rate limiting in-memory per IP sulle /api
 ```
 
 ## Architettura
@@ -84,8 +84,8 @@ Ogni risposta include:
 
 ### Sicurezza
 
-- **Rate limiting** in `middleware.js` (matcher `/api/:path*`): finestra fissa in-memory per chiave `metodo:path:IP`, con soglie dedicate (`/api/chat` e `/api/upload` 10/min, `/api/setup-locale` 2/min, `/api/status` 60/min). Sopra soglia → `429` + header `Retry-After`; header `X-RateLimit-Limit/Remaining` esposti. È per istanza server: su un deploy multi-istanza va spostato su un backing store condiviso.
-- **Security headers** impostati dal middleware solo sulle route `/api/*`: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`. Non è configurata una Content-Security-Policy.
+- **Rate limiting** in `proxy.js` (ex `middleware.js`, Next.js 16; matcher `/:path*`): finestra fissa in-memory per chiave `metodo:path:IP`, con soglie dedicate (`/api/chat` e `/api/upload` 10/min, `/api/setup-locale` 2/min, `/api/status` 60/min). Sopra soglia → `429` + header `Retry-After`; header `X-RateLimit-Limit/Remaining` esposti. È per istanza server: su un deploy multi-istanza va spostato su un backing store condiviso.
+- **Security headers** impostati dal proxy su **tutte** le route: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security`. In produzione viene aggiunta una **Content-Security-Policy** (`frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`, `connect-src 'self'`), omessa in development perché React/Fast Refresh richiedono `eval`.
 - **Upload**: il limite di 5 MB è enforce **anche lato server** (`/api/upload`) con doppio check (lunghezza base64 prima del decode, poi dimensione del buffer decodificato → `413`).
 - **XSS**: i link nelle risposte AI sono renderizzati come elementi React con `href` validato solo per schema `http`/`https` (`sanitizzaUrl()` in `page.js`); URL non sicuri (`javascript:`, `data:`, ecc.) vengono mostrati come testo non cliccabile. Nessun `dangerouslySetInnerHTML` nel progetto.
 

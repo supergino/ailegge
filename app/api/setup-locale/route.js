@@ -57,7 +57,7 @@ async function fetchCodice(codice) {
 // protetti da un token opzionale (APP_API_KEY, alias SETUP_API_KEY). Se non impostato
 // restano aperti (uso locale single-user); se impostato serve il token. Le richieste
 // da localhost sono sempre ammesse (tipico uso locale di questo strumento).
-// Il gating centralizzato è anche in middleware.js (APP_API_KEY).
+// Il gating centralizzato è anche in proxy.js (APP_API_KEY).
 function isLocalhost(req) {
   const ip = req.ip || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || ''
   return ['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost'].includes(ip)

@@ -72,7 +72,9 @@ function apiAuthorized(request, ip) {
   return false
 }
 
-export function middleware(request) {
+// Next.js 16: la convenzione `middleware` è deprecata, `proxy` la sostituisce
+// (stesso contratto, runtime Node.js). Il file deve restare nella root.
+export function proxy(request) {
   const { pathname } = request.nextUrl
   const response = NextResponse.next()
 
