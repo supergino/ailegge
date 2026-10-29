@@ -908,7 +908,10 @@ try {
   if (run.failed) exitCode = 1
   const summary = buildSummary()
   console.log(`\n${summary}\n`)
-  if (NOTIFY_MODE === 'always' || run.changes.length || run.failed) await notify(summary)
+  // Sempre notifica: il riepilogo dell'audit settimanale deve arrivare su
+  // Telegram (e/o webhook) ogni run, sia che tutto sia OK sia che ci siano
+  // stati interventi/sostituzioni da documentare.
+  await notify(summary)
 } catch (err) {
   console.error('\nErrore inatteso:', err)
   run.failed = true

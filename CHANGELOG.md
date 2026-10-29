@@ -2,10 +2,15 @@
 
 ## [2026-10-29]
 
+### Cambiato
+- **Notifica Telegram settimanale sempre**: l'audit `scripts/auto-update-models.mjs` ora invia SEMPRE il riepilogo via webhook/Telegram al termine dell'audit (prima: solo se ci erano sostituzioni o errori); ogni lunedì il controllo delle LLM notifica lo stato (tutto OK / sostituzioni / intervento manuale).
+- Versione aggiornata a v3.0.1
+
 ### Corretto
 - **`middleware.js` → `proxy.js`**: Next.js 16 deprecava la convenzione `middleware`, con un warning a ogni avvio e build. Il file è stato rinominato e la funzione esportata è ora `proxy` (stesso contratto, runtime Node.js); rate limiting, header di sicurezza e CSP restano invariati e verificati a runtime (60 richieste `200` poi `429` su `/api/status`, CSP presente con `next start`).
 - **Warning Turbopack "whole project traced"**: i path dei file dati dinamici (`DATA_DIR`, `WATCHDOG_STATE_FILE`, `tmpdir()`) non erano risolvibili staticamente, quindi il build tracciava l'intera root del progetto (15 file di progetto e `.data/keyword-index.json` finivano nell'NFT list). Aggiunti i commenti `/* turbopackIgnore: true */` in `lib/vector-store.js`, `lib/keyword-index.js` e `lib/watchdog.js`: build senza warning e NFT list ridotta (126 → 95 file, nessun file di progetto).
 - **Documentazione di sicurezza allineata al codice**: `CLAUDE.md` dichiarava header solo sulle `/api/*` e nessuna CSP; in realtà valgono su tutte le route e la CSP è attiva in produzione.
+- **Notifica Telegram settimanale sempre**: l'audit `scripts/auto-update-models.mjs` ora invia SEMPRE il riepilogo via webhook/Telegram al termine dell'audit (prima: solo se ci erano sostituzioni o errori); ogni lunedì il controllo delle LLM notifica lo stato (tutto OK / sostituzioni / intervento manuale).
 - Versione aggiornata a v2.8.2
 
 ### Aggiunto
@@ -14,6 +19,12 @@
 - **Nuovo comando** `npm run models:update` (dry-run di default, `-- --apply` per applicare, `-- --apply --commit` per committare) e riepilogo settimanale via gli stessi webhook/Telegram del watchdog.
 - **`.env.example`**: aggiunta `NVIDIA_API_KEY` e documentate le variabili opzionali `WATCHDOG_*` e `NVIDIA_MODEL`.
 - Versione aggiornata a v2.9.0
+
+### Verificato
+- **Flusso notifiche Telegram del watchdog**: `lib/watchdog.js` e `scripts/auto-update-models.mjs` inviano via Bot API `https://api.telegram.org/bot{TOKEN}/sendMessage` con `chat_id` e `text` (entrambi URL-encoded) quando `WATCHDOG_TELEGRAM_TOKEN` e `WATCHDOG_TELEGRAM_CHAT_ID` sono impostati; il messaggio di avviso problemi (`buildMessage`) include stato offline, modelli colpiti e suggerimento sostituzione. Simulazione di messaggio di test confermata (parametri e URL corretti); configurazione assente in locale (`WATCHDOG_*` solo in `.env.example`/GitHub Secrets per il workflow settimanale).
+
+### Aggiunto
+- **`scripts/test-telegram.mjs`** + script npm `npm run test:telegram`: invio automatico di messaggio di test via Telegram Bot API (richiede `WATCHDOG_TELEGRAM_TOKEN` e `WATCHDOG_TELEGRAM_CHAT_ID`); verifica presenza variabili e gestisce errore API.
 
 ## [2026-10-28]
 

@@ -1,6 +1,6 @@
 {
   "name": "ius-validatore-ai",
-  "version": "2.9.0",
+  "version": "3.0.1",
   "license": "Apache-2.0",
   "private": true,
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "check:models": "node scripts/check-models.mjs",
-    "models:update": "node scripts/auto-update-models.mjs"
+    "models:update": "node scripts/auto-update-models.mjs",
+    "test:telegram": "node scripts/test-telegram.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.9.0",
