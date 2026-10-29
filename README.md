@@ -262,6 +262,18 @@ cp .env.example .env.local
 
 \* *Solo `GEMINI_API_KEY` è obbligatorio; le altre sono facoltative — il sistema salta il passaggio corrispondente se mancante.*
 
+### Aggiornamento automatico dei modelli free
+
+I provider free ritirano i modelli senza preavviso. Una GitHub Action (`.github/workflows/weekly-models.yml`) ogni lunedì 06:00 UTC verifica con generazioni reali tutti i modelli configurati e, se uno non esiste più (`404/410`), ne sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs`, esegue il build e committa: Vercel ridistribuisce da solo. Rate limit, timeout e `5xx` **non** vengono trattati come fase-out, e il build fallito annulla tutto (nessun commit).
+
+```bash
+npm run models:update                      # audit senza modifiche
+npm run models:update -- --apply           # applica + build
+npm run models:update -- --apply --commit  # + commit e push
+```
+
+Servono i secrets `GEMINI_API_KEY`, `GROQ_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`; per il riepilogo settimanale anche `WATCHDOG_WEBHOOK_URL` o `WATCHDOG_TELEGRAM_TOKEN`/`WATCHDOG_TELEGRAM_CHAT_ID`.
+
 ### Configurazione dell'indice locale dei codici
 
 Nell'app, vai su **Modalità di elaborazione → Online** o **Locale** e clicca su **"Scarica e indicizza i codici"**. Il sistema scarica il Codice Civile e Penale da Normattiva, li suddivide in blocchi e crea:
@@ -739,6 +751,18 @@ cp .env.example .env.local
 | `TAVILY_API_KEY` | ❌* | Tavily (RAG search) | [tavily.com](https://tavily.com) |
 
 \* *Only `GEMINI_API_KEY` is required; the rest are optional — the system skips the respective step if missing.*
+
+### Automatic free-model updates
+
+Free providers retire models without notice. A GitHub Action (`.github/workflows/weekly-models.yml`) runs every Monday at 06:00 UTC, verifies every configured model with a real generation and, if a model is gone (`404/410`), picks a verified replacement, updates `lib/ai-models.mjs`, runs the build and commits: Vercel redeploys automatically. Rate limits, timeouts and `5xx` are **not** treated as phase-outs, and a failed build rolls everything back (no commit).
+
+```bash
+npm run models:update                      # audit only, no changes
+npm run models:update -- --apply           # apply + build
+npm run models:update -- --apply --commit  # + commit and push
+```
+
+Requires the `GEMINI_API_KEY`, `GROQ_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY` secrets; for the weekly summary also `WATCHDOG_WEBHOOK_URL` or `WATCHDOG_TELEGRAM_TOKEN`/`WATCHDOG_TELEGRAM_CHAT_ID`.
 
 ### Local Code Index Setup
 

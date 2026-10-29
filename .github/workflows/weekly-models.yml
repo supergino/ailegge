@@ -1,0 +1,56 @@
+name: Modelli free — audit settimanale
+
+# Verifica ogni lunedì che i modelli free configurati rispondano davvero e, se un
+# provider li ha ritirati (404/410), sceglie un sostituto verificato con una
+# generazione reale, aggiorna lib/ai-models.mjs, esegue il build e committa.
+#
+# Richiede i repository secrets: GEMINI_API_KEY, GROQ_API_KEY, NVIDIA_API_KEY,
+# OPENROUTER_API_KEY (opzionali per le notifiche: WATCHDOG_WEBHOOK_URL,
+# WATCHDOG_TELEGRAM_TOKEN, WATCHDOG_TELEGRAM_CHAT_ID).
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # lunedì 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Applica e committa le sostituzioni (deseleziona per solo audit)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: models-autoupdate
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Audit modelli free
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          WATCHDOG_WEBHOOK_URL: ${{ secrets.WATCHDOG_WEBHOOK_URL }}
+          WATCHDOG_TELEGRAM_TOKEN: ${{ secrets.WATCHDOG_TELEGRAM_TOKEN }}
+          WATCHDOG_TELEGRAM_CHAT_ID: ${{ secrets.WATCHDOG_TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.apply }}" != "true" ]; then
+            node scripts/auto-update-models.mjs
+          else
+            node scripts/auto-update-models.mjs --apply --commit
+          fi

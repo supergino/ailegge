@@ -102,11 +102,13 @@ Ogni risposta include:
 | `OLLAMA_CHAT_MODEL` | Modello chat Ollama (default `llama3.1:8b`) | — |
 | `OLLAMA_EMBEDDING_MODEL` | Modello embedding Ollama (default `nomic-embed-text`) | — |
 
-## Aggiornamento modelli LLM (procedura obbligatoria)
+## Aggiornamento modelli LLM
 
-**Trigger:** errore "Modello rimosso", HTTP 404/410/402, "modello non disponibile", oppure richiesta di aggiornare/cambiare un modello LLM. In questi casi agisci subito con la procedura, senza attendere altre istruzioni. **Non modificare a mano la pagina `/status`**: l'etichetta NVIDIA è derivata dal modello.
+**Trigger automatico:** ogni lunedì 06:00 UTC il workflow `.github/workflows/weekly-models.yml` esegue `scripts/auto-update-models.mjs --apply --commit`: verifica i modelli con generazioni reali, se uno è stato ritirato sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs` (+ CHANGELOG e versione), esegue `npm run build` e pusha su `main` (Vercel ridistribuisce). Se il build fallisce fa rollback e non committa.
 
-**Fonte unica di verità:** `lib/ai-models.mjs` (esporta `GEMINI_MODEL`, `GEMINI_MODEL_LABEL`, `NVIDIA_MODEL`, `OPENROUTER_NVIDIA_MODELS` e i due modelli Groq: `GROQ_VALIDATOR_MODEL` + `GROQ_FALLBACK_MODEL` con le rispettive label).
+**Trigger manuale:** errore "Modello rimosso", HTTP 404/410/402, "modello non disponibile", oppure richiesta di aggiornare/cambiare un modello LLM.
+
+**Fonte unica di verità:** `lib/ai-models.mjs` (esporta `GEMINI_MODEL`, `GEMINI_MODEL_LABEL`, `NVIDIA_MODEL`, `OPENROUTER_NVIDIA_MODELS` e i due modelli Groq: `GROQ_VALIDATOR_MODEL` + `GROQ_FALLBACK_MODEL` con le rispettive label). **Non modificare a mano le pagine**: le etichette sono derivate da qui.
 
 Consumatori, aggiornati automaticamente via import:
 - `app/api/chat/route.js` — generazione Gemini + catena di fallback
@@ -117,37 +119,54 @@ Consumatori, aggiornati automaticamente via import:
 - `app/info/page.js` — documentazione
 - `lib/watchdog.js` — monitoraggio dei modelli free
 
-### Passi
+### Audit e aggiornamento automatico
 
-1. **Diagnostica reale** (il catalogo da solo non basta):
+```bash
+npm run models:update                 # audit completo, nessuna modifica (sicuro)
+npm run models:update -- --apply      # applica le sostituzioni + build di verifica
+npm run models:update -- --apply --commit   # + commit e push (quello che fa la CI)
+```
+
+Comportamento (`scripts/auto-update-models.mjs`):
+- verifica **il modello in uso**, non il catalogo: generazione reale con JSON (validator per il validatore Groq);
+- sostituisce **solo** su `404/410` o `400 model not found` riconfermato; `429`, `402`, timeout, `5xx` e JSON non conforme **non** sono fase-out e non cambiano nulla (a parte una notifica);
+- Gemini resta su **Flash-Lite** e non scende mai sotto i limiti token attuali;
+- NVIDIA: il catalogo include modelli non abilitati all'account, quindi ogni candidato viene provato davvero;
+- OpenRouter: solo `openrouter/free` e endpoint `:free`; un `429`/`5xx` settimanale non rimuove un endpoint dalla catena;
+- se un ruolo resta senza sostituto: exit code 1, build/commit saltati e notifica (il job GitHub diventa rosso).
+
+### Passi manuali (solo se l'automazione non basta)
+
+1. **Diagnostica reale:**
    ```bash
-   npm run check:models
+   npm run check:models     # verifica puntuale dei modelli in uso
+   npm run models:update    # audit + proposta di sostituti senza modificare nulla
    ```
-   Esegue vere chat completion con `response_format: json_object`, con 3 tentativi per modello (i provider free danno 500/502 transienti).
-2. Se un modello fallisce, scegli un sostituto e verificalo **prima** di toccare il codice:
+2. Se serve un sostituto, verificalo **prima** di toccare il codice:
    - Catalogo NVIDIA NIM: `GET https://integrate.api.nvidia.com/v1/models` — **attenzione**: elenca anche modelli non abilitati all'account, che in `POST /v1/chat/completions` rispondono `404 Not found for account`.
    - Catalogo OpenRouter: `GET https://openrouter.ai/api/v1/models`.
    - **L'account OpenRouter non ha crediti**: funzionano solo `openrouter/free` e gli endpoint `:free`; gli altri rispondono `402`.
-3. Modifica **solo** `lib/ai-models.mjs` (Gemini, default NVIDIA, lista OpenRouter, modelli Groq validatore/fallback).
-4. Riesegui `npm run check:models` finché tutti risultano `OK`.
-5. `npm run build` deve concludersi senza errori.
-6. Aggiorna la documentazione: catena di fallback e stack in `README.md` (sezioni IT ed EN), `CHANGELOG.md`, versione in `package.json` e `app/page.js` (`APP_VERSION`).
-7. Commit e push su `main`: Vercel ridistribuisce e `/status` mostra i nuovi modelli.
+3. Modifica **solo** `lib/ai-models.mjs` (oppure `npm run models:update -- --apply`).
+4. `npm run check:models` finché tutti risultano `OK`; `npm run build` senza errori.
+5. Aggiorna `CHANGELOG.md` + versione (`package.json`, `package-lock.json`, `APP_VERSION` in `app/page.js`).
+6. Commit e push su `main`.
 
-### Modello primario Gemini (verifica obbligatoria)
-A ogni aggiornamento LLM verifica anche che Gemini sia il miglior modello **free** disponibile:
-- `npm run check:models` stampa i limiti del modello in uso e l'elenco dei modelli testuali con `inputTokenLimit`/`outputTokenLimit` **maggiori o uguali**.
-- Un candidato è valido solo se: `generateContent` funziona con la chiave attuale (HTTP 200), limiti token **non inferiori** a quelli attuali (oggi 1.048.576 input / 65.536 output), appartiene alla fascia gratuita (varianti **Flash-Lite**, al massimo Flash; **non** Pro) e risponde entro tempi ragionevoli.
-- Aggiorna `GEMINI_MODEL` e `GEMINI_MODEL_LABEL` in `lib/ai-models.mjs`. Non toccare le etichette nelle pagine: sono derivate.
+### Modello primario Gemini (policy)
+- Policy: resta sulla variante **Flash-Lite** (fascia gratuita con quota più alta). Se una Flash-Lite sparisce, l'automazione cerca la Flash-Lite stabile più recente con limiti token `>=` agli attuali (oggi 1.048.576 input / 65.536 output); l'alias `gemini-flash-lite-latest` è la ruota di scorta.
+- Un candidato è valido solo se `generateContent` funziona con la chiave attuale (HTTP 200) e risponde entro tempi ragionevoli.
 
 ### Vincoli noti
 - Il fallback ha **timeout 30s** per chiamata: preferisci modelli che rispondono entro 30s (in caso di cold start, usa un modello più piccolo).
-- `response_format: { type: 'json_object' }` è inviato a tutti tranne `openrouter/free`; il sostituto deve supportarlo (verificato da `check:models`).
-- `NVIDIA_MODEL` come variabile d'ambiente (es. su Vercel) **ha precedenza** sul default: se l'errore persiste online, verifica che la env var non punti a un modello rimosso.
+- `response_format: { type: 'json_object' }` è inviato a tutti tranne `openrouter/free`; il sostituto deve supportarlo (verificato da audit e `check:models`).
+- `NVIDIA_MODEL` come variabile d'ambiente (es. su Vercel) **ha precedenza** sul default: se è impostata, una sostituzione in `lib/ai-models.mjs` non ha effetto (l'audit lo segnala).
 - I 500/502 dei provider free sono spesso transienti: non cambiare modello al primo errore, usa i retry.
 
+### Secrets del workflow
+Repository → Settings → Secrets and variables → Actions: `GEMINI_API_KEY`, `GROQ_API_KEY`, `NVIDIA_API_KEY`, `OPENROUTER_API_KEY` (necessari); `WATCHDOG_WEBHOOK_URL`, `WATCHDOG_TELEGRAM_TOKEN`, `WATCHDOG_TELEGRAM_CHAT_ID` (opzionali, per il riepilogo settimanale).
+
 ### Checklist rapida
-- [ ] `lib/ai-models.mjs` aggiornato
+- [ ] `npm run models:update` → tutti `ok`/`fixed`, exit 0
+- [ ] `lib/ai-models.mjs` aggiornato (se necessario)
 - [ ] `npm run check:models` → tutto `OK`
 - [ ] `npm run build` → successo
 - [ ] README + CHANGELOG + versione aggiornati

@@ -8,6 +8,13 @@
 - **Documentazione di sicurezza allineata al codice**: `CLAUDE.md` dichiarava header solo sulle `/api/*` e nessuna CSP; in realtà valgono su tutte le route e la CSP è attiva in produzione.
 - Versione aggiornata a v2.8.2
 
+### Aggiunto
+- **Audit settimanale automatico dei modelli free** (`scripts/auto-update-models.mjs` + `.github/workflows/weekly-models.yml`, ogni lunedì 06:00 UTC): verifica con generazioni reali Gemini, i due modelli Groq, NVIDIA NIM e la catena OpenRouter; se un modello è stato ritirato (`404/410` o `400 model not found` riconfermato) sceglie un sostituto **verificato**, aggiorna `lib/ai-models.mjs`, `CHANGELOG.md` e la versione, esegue `npm run build` e committa su `main` (Vercel ridistribuisce). Rate limit, `402`, timeout, `5xx` e JSON non conforme non sono trattati come fase-out; build fallito ⇒ rollback e nessun commit.
+- **Policy di scelta per ruolo**: Gemini resta su Flash-Lite con limiti token non inferiori agli attuali; Groq preferisce `qwen`/`gpt-oss` e collauda il validatore con lo schema reale; NVIDIA prova davvero i candidati (il catalogo elenca modelli non abilitati); OpenRouter usa solo `openrouter/free` e endpoint `:free`, tenendo il router come ultima risorsa.
+- **Nuovo comando** `npm run models:update` (dry-run di default, `-- --apply` per applicare, `-- --apply --commit` per committare) e riepilogo settimanale via gli stessi webhook/Telegram del watchdog.
+- **`.env.example`**: aggiunta `NVIDIA_API_KEY` e documentate le variabili opzionali `WATCHDOG_*` e `NVIDIA_MODEL`.
+- Versione aggiornata a v2.9.0
+
 ## [2026-10-28]
 
 ### Corretto
