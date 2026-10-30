@@ -29,7 +29,7 @@ import {
 import { GEMINI_MODEL_LABEL } from '../lib/ai-models.mjs'
 import { LEGAL_DOMAINS, normalizzaSito, legalSourceUrl } from '../lib/legal-sources.mjs'
 
-const APP_VERSION = '3.1.0'
+const APP_VERSION = '3.1.1'
 
 const DOMANDE_SUGGERITE = [
   'Spiega la responsabilità extracontrattuale',

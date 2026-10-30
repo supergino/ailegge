@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-10-30]
+
+### Aggiornato
+- **Next.js 16.2.9 → 16.4.3** (stessa major, nessun cambio di codice applicativo) e transitive conseguenti: `sharp` 0.35.5, `postcss` 8.5.23, `browserslist` 4.29.5, `source-map-js` 1.2.2, `protobufjs` 7.6.6.
+- **`npm audit` azzerato**: da 9 vulnerabilità (1 critical su `next`, più `sharp`, `postcss`, `source-map-js`, `browserslist`) a 0.
+- Versione aggiornata a v3.1.1
+
+### Verificato
+- Build di produzione con Next 16.4.3 (Turbopack): compilazione e TypeScript puliti, 11/11 pagine statiche generate, Proxy (middleware) attivo, nessun warning.
+- Smoke test con `next start`: `/`, `/status`, `/info` e `/api/status` rispondono `200`.
+
 ## [2026-10-29]
 
 ### Cambiato
