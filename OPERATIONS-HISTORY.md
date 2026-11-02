@@ -7,6 +7,68 @@ Non inserire chiavi, token o chat ID reali: solo i nomi delle variabili.
 
 ---
 
+## 2026-11-02 (pomeriggio) — Il test schedulato delle 10:00 non è partito
+
+### Sintomo
+Nessuna notifica Telegram alle 10:00. L'utente non sapeva se il job di prova
+fosse stato eseguito.
+
+### Diagnosi
+- **Job launchd mai caricato**: il plist
+  `~/Library/LaunchAgents/com.iusmente.audit-test.plist` è presente, ma
+  `launchctl list` non lo contiene e
+  `launchctl print gui/$(id -u)/com.iusmente.audit-test` risponde
+  *"Could not find service"*. Scrivere il plist nella cartella LaunchAgents
+  **non basta**: senza `launchctl bootstrap` viene caricato solo al login
+  successivo.
+- **Nessuna esecuzione**: il log `iusmente-audit-10.log` non esiste e
+  `log show --last 12h` non contiene tracce `iusmente`.
+- **Pipeline Telegram OK**: test di invio riuscito.
+
+### Verifiche eseguite
+- `node --env-file=.env.local scripts/test-telegram.mjs` → invio OK.
+- `node --env-file=.env.local scripts/auto-update-models.mjs --notify=always`
+  (dry-run) → gemini, groq-validator, groq-fallback, nvidia `ok`; openrouter
+  `degraded` (`nvidia/nemotron-3.5-lightning:free: invalid`); notifica inviata.
+
+### Anomalia separata corretta
+Il riepilogo segnava `openrouter` come `degraded` ma concludeva con
+"✅ Tutti i modelli configurati rispondono". In `scripts/auto-update-models.mjs`
+il verdetto finale ora considera ogni ruolo non `ok`/`fixed`/`skipped` e stampa
+"⚠️ Audit completato con provider non pienamente operativi: …".
+Verificato con un audit reale: il messaggio Telegram riporta ora
+`openrouter (degraded)`. L'exit code resta `0` per un `degraded` (non fa fallire
+il workflow); restano `❌` solo gli errori che richiedono intervento
+(`run.failed`: auth, no_credits, ritirati senza sostituto, build/commit).
+
+### Interventi
+1. **Job launchd riarmato** per domani alle 10:00:
+   `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.iusmente.audit-test.plist`
+   (verificato con `launchctl print`: `state = not running`, argomenti corretti).
+2. **Script e log spostati fuori dalla cartella temporanea** (che può essere
+   ripulita e avrebbe fatto fallire il job):
+   - script: `~/Library/Application Support/IusMente/audit-test.sh`
+   - log: `~/Library/Logs/IusMente/audit-test.log`
+   - plist aggiornato di conseguenza.
+3. Lo script resta one-shot: al termine esegue `launchctl bootout` di se stesso.
+
+### Prossimo controllo (domani, 2026-11-03, ore 10:00)
+- [ ] Verificare l'arrivo del messaggio Telegram delle 10:00.
+- [ ] Controllare `~/Library/Logs/IusMente/audit-test.log`: deve contenere
+      `inizio audit` e `fine audit, exit=0`.
+- [ ] Dopo l'esecuzione il job si rimuove da solo: `launchctl print
+      gui/$(id -u)/com.iusmente.audit-test` deve rispondere "Could not find
+      service".
+- [ ] Nota: `openrouter` risulta `degraded` per
+      `nvidia/nemotron-3.5-lightning:free: invalid` (HTTP 200 ma risposta non
+      JSON valido). Il meccanismo di sostituzione automatica gestisce solo i
+      modelli `gone` (404/410), non gli `invalid`: valutare se estenderlo o
+      rimuovere quel modello dalla catena.
+- [ ] Dopo ogni creazione di un plist one-shot, verificare **sempre** con
+      `launchctl print gui/$(id -u)/<label>` che il job sia registrato.
+
+---
+
 ## 2026-11-02 — Nessun messaggio Telegram dall'audit delle 06:00
 
 ### Sintomo

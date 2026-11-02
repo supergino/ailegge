@@ -885,10 +885,17 @@ function buildSummary() {
     lines.push(`\n♻️ ${c.role}: ${from} → ${to}`)
   }
   if (run.notes.length) lines.push('', ...run.notes.map((n) => `ℹ️ ${n}`))
+  // Un provider è "problematico" se non è ok/fixed/skipped: es. degraded o
+  // invalid. Il verdetto finale deve tenerne conto, altrimenti il riepilogo
+  // direbbe "tutto ok" pur avendo un provider che non risponde.
+  const problems = run.roles.filter((r) => !['ok', 'fixed', 'skipped'].includes(r.status))
   if (!run.roles.length) {
     lines.push('\n⏭️ Nessun provider configurato: audit non eseguito.')
   } else if (run.failed) {
     lines.push('\n❌ Intervento manuale necessario.')
+  } else if (problems.length) {
+    const elenco = problems.map((r) => `${r.id} (${r.status})`).join(', ')
+    lines.push(`\n⚠️ Audit completato con provider non pienamente operativi: ${elenco}.`)
   } else {
     lines.push('\n✅ Tutti i modelli configurati rispondono.')
   }
