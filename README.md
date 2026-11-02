@@ -264,7 +264,7 @@ cp .env.example .env.local
 
 ### Aggiornamento automatico dei modelli free
 
-I provider free ritirano i modelli senza preavviso. Una GitHub Action (`.github/workflows/weekly-models.yml`) ogni lunedì 06:00 UTC verifica con generazioni reali tutti i modelli configurati e, se uno non esiste più (`404/410`), ne sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs`, esegue il build e committa: Vercel ridistribuisce da solo. Rate limit, timeout e `5xx` **non** vengono trattati come fase-out, e il build fallito annulla tutto (nessun commit).
+I provider free ritirano i modelli senza preavviso. Una GitHub Action (`.github/workflows/weekly-models.yml`) ogni lunedì alle 09:00 (ora italiana, ora legale inclusa) verifica con generazioni reali tutti i modelli configurati e, se uno non esiste più (`404/410`), ne sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs`, esegue il build e committa: Vercel ridistribuisce da solo. Rate limit, timeout e `5xx` **non** vengono trattati come fase-out, e il build fallito annulla tutto (nessun commit).
 
 ```bash
 npm run models:update                      # audit senza modifiche
@@ -754,7 +754,7 @@ cp .env.example .env.local
 
 ### Automatic free-model updates
 
-Free providers retire models without notice. A GitHub Action (`.github/workflows/weekly-models.yml`) runs every Monday at 06:00 UTC, verifies every configured model with a real generation and, if a model is gone (`404/410`), picks a verified replacement, updates `lib/ai-models.mjs`, runs the build and commits: Vercel redeploys automatically. Rate limits, timeouts and `5xx` are **not** treated as phase-outs, and a failed build rolls everything back (no commit).
+Free providers retire models without notice. A GitHub Action (`.github/workflows/weekly-models.yml`) runs every Monday at 09:00 Italian time (DST included), verifies every configured model with a real generation and, if a model is gone (`404/410`), picks a verified replacement, updates `lib/ai-models.mjs`, runs the build and commits: Vercel redeploys automatically. Rate limits, timeouts and `5xx` are **not** treated as phase-outs, and a failed build rolls everything back (no commit).
 
 ```bash
 npm run models:update                      # audit only, no changes

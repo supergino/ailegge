@@ -10,7 +10,12 @@ name: Modelli free — audit settimanale
 
 on:
   schedule:
-    - cron: '0 6 * * 1' # lunedì 06:00 UTC
+    # GitHub Actions accetta solo UTC: per partire alle 09:00 italiane tutto
+    # l'anno si schedulano entrambe le possibili ore UTC e il passo
+    # "Verifica orario locale" scarta quella che, per via dell'ora legale,
+    # corrisponderebbe a un'ora diversa dalle 09:00 Europe/Rome.
+    - cron: '0 7 * * 1' # lunedì 07:00 UTC = 09:00 CEST (ora legale)
+    - cron: '0 8 * * 1' # lunedì 08:00 UTC = 09:00 CET (ora solare)
   workflow_dispatch:
     inputs:
       apply:
@@ -32,14 +37,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Con due cron (ora legale/solare) il workflow parte due volte ogni
+      # lunedì: qui si prosegue solo se in Europe/Rome sono davvero le 09:00.
+      # Le esecuzioni manuali (workflow_dispatch) non vengono mai saltate.
+      - name: Verifica orario locale (09:00 Europe/Rome)
+        id: guard
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ora=$(TZ=Europe/Rome date +%H)
+          echo "Ora locale Europe/Rome: $(TZ=Europe/Rome date '+%Y-%m-%d %H:%M %Z')"
+          if [ "$ora" = "09" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Esecuzione ignorata: non sono le 09:00 italiane."
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.guard.outputs.skip != 'true'
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci
+        if: steps.guard.outputs.skip != 'true'
 
       - name: Audit modelli free
+        if: steps.guard.outputs.skip != 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

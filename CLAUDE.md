@@ -104,7 +104,7 @@ Ogni risposta include:
 
 ## Aggiornamento modelli LLM
 
-**Trigger automatico:** ogni lunedì 06:00 UTC il workflow `.github/workflows/weekly-models.yml` esegue `scripts/auto-update-models.mjs --apply --commit`: verifica i modelli con generazioni reali, se uno è stato ritirato sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs` (+ CHANGELOG e versione), esegue `npm run build` e pusha su `main` (Vercel ridistribuisce). Se il build fallisce fa rollback e non committa.
+**Trigger automatico:** ogni lunedì alle 09:00 italiane (ora legale inclusa: due cron UTC + controllo dell'ora locale nel workflow) il workflow `.github/workflows/weekly-models.yml` esegue `scripts/auto-update-models.mjs --apply --commit`: verifica i modelli con generazioni reali, se uno è stato ritirato sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs` (+ CHANGELOG e versione), esegue `npm run build` e pusha su `main` (Vercel ridistribuisce). Se il build fallisce fa rollback e non committa.
 
 **Trigger manuale:** errore "Modello rimosso", HTTP 404/410/402, "modello non disponibile", oppure richiesta di aggiornare/cambiare un modello LLM.
 

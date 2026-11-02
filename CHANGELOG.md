@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-11-02]
+
+### Corretto
+- **Audit settimanale alle 09:00 italiane** (prima `0 6 * * 1` = 06:00 UTC, cioè le 07:00 in Italia): il workflow ora usa due cron UTC (`0 7` e `0 8`) e un passo "Verifica orario locale" che scarta l'esecuzione sbagliata causata dall'ora legale, così il controllo parte alle 09:00 Europe/Rome tutto l'anno. Le esecuzioni manuali (`workflow_dispatch`) non vengono mai saltate.
+- **Secrets GitHub Actions configurati** per il repository: chiavi Gemini/Groq/NVIDIA/OpenRouter e Telegram. Prima erano assenti, quindi anche un'esecuzione del workflow non avrebbe potuto verificare i modelli né inviare il riepilogo.
+- Versione aggiornata a v3.1.2
+
+### Verificato
+- Audit eseguito in locale con le stesse chiavi dei secrets: Gemini, Groq (validatore e fallback) e NVIDIA rispondono; catena OpenRouter `degraded` (2 endpoint su 4), nessuna sostituzione necessaria.
+- Invio Telegram verificato (messaggio di test e riepilogo audit ricevuti).
+
 ## [2026-10-30]
 
 ### Aggiornato
