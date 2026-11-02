@@ -20,6 +20,9 @@ Senza\ nome.rtfd/
 # Local vector store data
 .data/
 
+# Stato/storico di runtime di watchdog e audit modelli
+data/
+
 # Log files
 *.log
 
