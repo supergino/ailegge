@@ -2,6 +2,8 @@
 
 Guida per assistenti AI quando lavorano su questo repository.
 
+Storico di interventi, diagnosi e verifiche su scheduler/Telegram/modelli: **`OPERATIONS-HISTORY.md`** — va aggiornato a ogni intervento.
+
 ## Stack
 
 - **Framework:** Next.js 16 (App Router, Turbopack)
