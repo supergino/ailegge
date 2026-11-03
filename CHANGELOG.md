@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-11-03]
+
+### Cambiato
+- **Ordine della catena OpenRouter**: i 3 endpoint NVIDIA `:free` (`nvidia/nemotron-3.5-lightning:free` → `nvidia/nemotron-3.5-super-vl:free` → `nvidia/nemotron-3-ultra-550b-a55b:free`) vengono ora provati **prima** del router generico `openrouter/free`, che resta l'ultima risorsa. Modelli fissi, contesto ampio e comportamento prevedibile prima del router; nessun cambiamento nelle sostituzioni automatiche, che continuano a tenere il router in coda.
+- **`scripts/auto-update-models.mjs`**: dopo una sostituzione la catena viene riscritta in quest'ordine (fissi → sostituti → router), così l'audit non riporta più il router in testa.
+- **`lib/watchdog.js`**: l'id `openrouter-free` è assegnato in base al nome del modello, non più alla posizione nell'array.
+- Versione aggiornata a v3.1.3
+
+### Verificato
+- `npm run build` (Next 16.4.3, Turbopack): compilazione e TypeScript puliti, 11/11 pagine statiche generate.
+- `npm run check:models` con le chiavi reali: **6/6 ok** (Gemini, NVIDIA NIM, i 3 endpoint OpenRouter `:free` e il router), JSON valido su tutti.
+
 ## [2026-11-02]
 
 ### Corretto

@@ -239,9 +239,9 @@ Comportamento accademico:
       if (process.env.OPENROUTER_API_KEY) {
         const OR_BASE = { url: 'https://openrouter.ai/api/v1/chat/completions', key: process.env.OPENROUTER_API_KEY }
         // Modelli NVIDIA "open" erogati da OpenRouter come FREE ENDPOINT (senza crediti,
-        // solo OPENROUTER_API_KEY). Sono preferibili al router generico "openrouter/free"
-        // perché modelli fissi, capaci e con contesto ampio (fino a 1M token).
-        // Ordine per qualità/affidabilità: nano (veloce) → 49B → super 120B (più potente).
+        // solo OPENROUTER_API_KEY). L'ordine è quello di OPENROUTER_NVIDIA_MODELS:
+        // prima i modelli fissi (lightning → super-vl → ultra), il router generico
+        // "openrouter/free" resta l'ultima risorsa della catena.
         const OR_MODELS = OPENROUTER_NVIDIA_MODELS
         for (const model of OR_MODELS) {
           endpoints.push({ name: `OpenRouter:${model}`, ...OR_BASE, model })

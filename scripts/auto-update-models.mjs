@@ -661,7 +661,10 @@ async function audit() {
       const found = needed
         ? await findOpenRouterReplacements({ current: null, have: kept, slots: needed })
         : []
-      const next = [...kept, ...found.map((f) => f.model)]
+      // Ordine imposto: endpoint fissi → eventuali sostituti → router in coda.
+      // Il router `openrouter/free` resta l'ultima risorsa della catena, come
+      // documentato in README/CLAUDE, anche dopo una sostituzione automatica.
+      const next = [...fixedChain, ...found.map((f) => f.model), ...(hasRouter ? ['openrouter/free'] : [])]
       if (next.length && (gone.length || next.length !== r.model.length)) {
         patches.push({
           kind: 'array',
