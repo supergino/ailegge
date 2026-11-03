@@ -126,7 +126,8 @@ sapeva se il controllo dei modelli LLM fosse stato eseguito.
 - Il workflow ha ora un'esecuzione manuale riuscita e i secrets sono presenti.
 
 ### Prossimo controllo (lunedì 2026-11-09)
-- [ ] Verificare che sia arrivato il messaggio Telegram delle 09:00.
+- [ ] Verificare che sia arrivato il messaggio Telegram: parte a fine audit,
+      quindi pochi minuti **dopo** le 09:00 (non alle 09:00 in punto).
 - [ ] `gh run list --repo supergino/ailegge --workflow weekly-models.yml --limit 5`
       → deve comparire un run `schedule` con `success` intorno alle 08:00 UTC.
 - [ ] Se non parte, controllare nell'ordine:

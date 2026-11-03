@@ -132,7 +132,7 @@ npm run models:update -- --apply --commit   # + commit e push (quello che fa la 
 Comportamento (`scripts/auto-update-models.mjs`):
 - verifica **il modello in uso**, non il catalogo: generazione reale con JSON (validator per il validatore Groq);
 - sostituisce **solo** su `404/410` o `400 model not found` riconfermato; `429`, `402`, timeout, `5xx` e JSON non conforme **non** sono fase-out e non cambiano nulla;
-- **Notifica sempre**: al termine dell'audit viene inviato **sempre** il riepilogo (Telegram/webhook) — con stato OK, sostituzioni o intervento manuale — non solo in caso di cambiamenti/errori (exit 1 solo per intervento manuale necessario).
+- **Notifica sempre**: al termine dell'audit viene inviato **sempre** il riepilogo (Telegram/webhook) — con stato OK, sostituzioni o intervento manuale — non solo in caso di cambiamenti/errori (exit 1 solo per intervento manuale necessario). Il messaggio parte **a fine audit**, quindi arriva pochi minuti dopo le 09:00 (tipicamente ~1-6 min, in base ai tempi dei probe e al build), non alle 09:00 in punto.
 - Gemini resta su **Flash-Lite** e non scende mai sotto i limiti token attuali;
 - NVIDIA: il catalogo include modelli non abilitati all'account, quindi ogni candidato viene provato davvero;
 - OpenRouter: solo `openrouter/free` e endpoint `:free`; un `429`/`5xx` settimanale non rimuove un endpoint dalla catena;
