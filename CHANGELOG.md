@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-05]
+
+### Amplificato
+- **Memoria conversazionale**: aumentati i limiti di messaggi e caratteri in `lib/chat-memory.mjs` per tutte le modalità (client: 200→500 messaggi, 60k→120k caratteri; online Gemini: 100→200 messaggi, 60k→120k caratteri; fallback: 30→80 messaggi, 8k→16k caratteri; local Ollama: 30→80 messaggi, 10k→20k caratteri). Limite assoluto `HARD_MESSAGE_LIMIT` portato da 500 a 1000. Questo dovrebbe ridurre il problema della perdita di contesto dopo poche risposte.
+- **Version aggiornata a v3.2.0**
+
 ## [2026-11-03]
 
 ### Cambiato
