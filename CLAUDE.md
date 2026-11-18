@@ -106,7 +106,7 @@ Ogni risposta include:
 
 ## Aggiornamento modelli LLM
 
-**Trigger automatico:** ogni lunedì alle 09:00 italiane (ora legale inclusa: due cron UTC + controllo dell'ora locale nel workflow) il workflow `.github/workflows/weekly-models.yml` esegue `scripts/auto-update-models.mjs --apply --commit`: verifica i modelli con generazioni reali, se uno è stato ritirato sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs` (+ CHANGELOG e versione), esegue `npm run build` e pusha su `main` (Vercel ridistribuisce). Se il build fallisce fa rollback e non committa.
+**Trigger automatico:** ogni lunedì il workflow `.github/workflows/weekly-models.yml` esegue `scripts/auto-update-models.mjs --apply --commit`: verifica i modelli con generazioni reali, se uno è stato ritirato sceglie un sostituto verificato, aggiorna `lib/ai-models.mjs` (+ CHANGELOG e versione), esegue `npm run build` e pusha su `main` (Vercel ridistribuisce). Se il build fallisce fa rollback e non committa. I due cron UTC (`0 7` e `0 8` lunedì, per ora legale/solare) **non garantiscono l'ora di consegna**: GitHub Actions può ritardarli anche di 8-10 ore, quindi il workflow non pretende più le 09:00 e usa una guardia di dedup (un solo audit per settimana, i run successivi si fermano se un altro run ha già eseguito il passo `Audit modelli free` negli ultimi 6 giorni).
 
 **Trigger manuale:** errore "Modello rimosso", HTTP 404/410/402, "modello non disponibile", oppure richiesta di aggiornare/cambiare un modello LLM.
 
@@ -132,7 +132,7 @@ npm run models:update -- --apply --commit   # + commit e push (quello che fa la 
 Comportamento (`scripts/auto-update-models.mjs`):
 - verifica **il modello in uso**, non il catalogo: generazione reale con JSON (validator per il validatore Groq);
 - sostituisce **solo** su `404/410` o `400 model not found` riconfermato; `429`, `402`, timeout, `5xx` e JSON non conforme **non** sono fase-out e non cambiano nulla;
-- **Notifica sempre**: al termine dell'audit viene inviato **sempre** il riepilogo (Telegram/webhook) — con stato OK, sostituzioni o intervento manuale — non solo in caso di cambiamenti/errori (exit 1 solo per intervento manuale necessario). Il messaggio parte **a fine audit**, quindi arriva pochi minuti dopo le 09:00 (tipicamente ~1-6 min, in base ai tempi dei probe e al build), non alle 09:00 in punto.
+- **Notifica sempre**: al termine dell'audit viene inviato **sempre** il riepilogo (Telegram/webhook) — con stato OK, sostituzioni o intervento manuale — non solo in caso di cambiamenti/errori (exit 1 solo per intervento manuale necessario). Il messaggio parte **a fine audit**, quindi arriva pochi minuti dopo l'inizio del run (~1-6 min, in base ai tempi dei probe e al build). L'ora di arrivo dipende da quando GitHub consegna il cron (può slittare di ore), non è più vincolata alle 09:00.
 - Gemini resta su **Flash-Lite** e non scende mai sotto i limiti token attuali;
 - NVIDIA: il catalogo include modelli non abilitati all'account, quindi ogni candidato viene provato davvero;
 - OpenRouter: solo `openrouter/free` e endpoint `:free`; un `429`/`5xx` settimanale non rimuove un endpoint dalla catena;

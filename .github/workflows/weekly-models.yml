@@ -10,10 +10,10 @@ name: Modelli free — audit settimanale
 
 on:
   schedule:
-    # GitHub Actions accetta solo UTC: per partire alle 09:00 italiane tutto
-    # l'anno si schedulano entrambe le possibili ore UTC e il passo
-    # "Verifica orario locale" scarta quella che, per via dell'ora legale,
-    # corrisponderebbe a un'ora diversa dalle 09:00 Europe/Rome.
+    # GitHub Actions accetta solo UTC. Si schedulano entrambe le ore possibili
+    # (ora legale/solare): la consegna dei cron può però slittare di molte ore,
+    # quindi non si pretende una fascia oraria precisa e la deduplicazione nel
+    # job garantisce un solo audit per settimana.
     - cron: '0 7 * * 1' # lunedì 07:00 UTC = 09:00 CEST (ora legale)
     - cron: '0 8 * * 1' # lunedì 08:00 UTC = 09:00 CET (ora solare)
   workflow_dispatch:
@@ -25,6 +25,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # serve al passo di dedup per leggere le esecuzioni precedenti
 
 concurrency:
   group: models-autoupdate
@@ -37,25 +38,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Con due cron (ora legale/solare) il workflow parte due volte ogni
-      # lunedì: qui si prosegue solo se in Europe/Rome sono davvero le 09:00.
+      # I due cron (ora legale/solare) fanno partire il workflow due volte ogni
+      # lunedì, ma GitHub Actions può consegnarli con molte ore di ritardo (qui
+      # anche 9-10 ore): un guard che pretende le 09:00 in punto scarta tutte le
+      # esecuzioni e l'audit non parte più.
+      # Regola attuale: l'audit gira una sola volta a settimana, all'ora in cui
+      # GitHub lo consegna, e i run successivi si fermano se un altro run della
+      # stessa settimana ha già eseguito il passo "Audit modelli free".
       # Le esecuzioni manuali (workflow_dispatch) non vengono mai saltate.
-      - name: Verifica orario locale (09:00 Europe/Rome)
+      - name: Guardia settimanale (dedup esecuzioni)
         id: guard
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then
             echo "skip=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          ora=$(TZ=Europe/Rome date +%H)
           echo "Ora locale Europe/Rome: $(TZ=Europe/Rome date '+%Y-%m-%d %H:%M %Z')"
-          if [ "$ora" = "09" ]; then
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Esecuzione ignorata: non sono le 09:00 italiane."
-          fi
+          # Inizio della settimana corrente (lunedì 00:00 Europe/Rome), così il
+          # dedup vale per la settimana e non per una finestra mobile di giorni.
+          dow=$(TZ=Europe/Rome date +%u)
+          inizio=$(TZ=Europe/Rome date -d "-$((dow - 1)) days 00:00" +%s)
+          altri=$(gh api "repos/$REPO/actions/workflows/weekly-models.yml/runs?per_page=20" \
+            --jq ".workflow_runs[] | select(.id != ${RUN_ID}) | select((.created_at | fromdateiso8601) >= ${inizio}) | .id")
+          for id in $altri; do
+            stato=$(gh api "repos/$REPO/actions/runs/$id/jobs" \
+              --jq '[.jobs[].steps[] | select(.name == "Audit modelli free") | .conclusion] | first // "assente"')
+            if [ "$stato" = "success" ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "Esecuzione ignorata: l'audit è già stato eseguito dal run $id."
+              exit 0
+            fi
+          done
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "Prima esecuzione utile della settimana: procedo con l'audit."
 
       - uses: actions/setup-node@v4
         if: steps.guard.outputs.skip != 'true'

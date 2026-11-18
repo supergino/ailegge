@@ -7,6 +7,70 @@ Non inserire chiavi, token o chat ID reali: solo i nomi delle variabili.
 
 ---
 
+## 2026-11-18 — Le notifiche settimanali Telegram non arrivano più
+
+### Sintomo
+Nessun messaggio di riepilogo dell'audit modelli dal 2 novembre 2026 (ultima
+notifica ricevuta: il run manuale di quel giorno). I run schedulati del 9 e del
+16 novembre risultavano comunque **verdi** nella UI di GitHub Actions.
+
+### Diagnosi
+Il passo `Verifica orario locale (09:00 Europe/Rome)` scartava ogni esecuzione
+schedulata: pretendeva `date +%H` = `09` in `Europe/Rome`, ma GitHub Actions ha
+consegnato i cron con **9-10 ore di ritardo**.
+
+| Run | Cron previsto | Ora di consegna | Ora locale | Esito |
+|---|---|---|---|---|
+| 41413998971 | manuale | 02/11 08:33 UTC | 09:33 | audit eseguito (ultima notifica) |
+| 42661716747 | 09/11 08:00 UTC | 09/11 17:08 UTC | 18:08 | saltato dal guard |
+| 42672395796 | 09/11 07:00 UTC | 09/11 18:15 UTC | 19:15 | failure GitHub, nessun job creato |
+| 43910724974 | 16/11 07:00 UTC | 16/11 16:43 UTC | 17:43 | saltato dal guard |
+| 43923024367 | 16/11 08:00 UTC | 16/11 17:53 UTC | 18:53 | saltato dal guard |
+
+Nei run saltati i passi `setup-node`, `npm ci` e `Audit modelli free` risultano
+`skipped`: il job "passa", quindi il guasto è invisibile senza aprire la run.
+
+Nota: il `.env.local` del PC Windows contiene solo le 5 API key, **non**
+`WATCHDOG_TELEGRAM_TOKEN` / `WATCHDOG_TELEGRAM_CHAT_ID`, quindi un audit locale
+qui non notificherebbe nulla (`notify()` stampa "nessuna notifica configurata").
+Non è la causa del silenzio: l'invio avveniva dai runner GitHub, dove i secret
+sono presenti.
+
+### Verifiche eseguite
+- `GET /repos/supergino/ailegge/actions/workflows/weekly-models.yml/runs` (API
+  pubblica): 5 run totali, orari di consegna come da tabella.
+- `GET /repos/.../actions/runs/<id>/jobs` per ogni run: confermato `skipped` sul
+  passo di audit nei run del 9 e 16 novembre.
+- YAML del workflow validato con `js-yaml`: parsing corretto, permessi
+  `contents: write` + `actions: read`.
+- `npm run build` (Next 16.4.3): compilazione ok, ma il comando termina con
+  `SecurityFatalError` perché la versione di Next.js ha una vulnerabilità nota →
+  upgrade di sicurezza da fare (vedi sotto).
+
+### Interventi
+1. **Guard sostituito** in `.github/workflows/weekly-models.yml`:
+   `Guardia settimanale (dedup esecuzioni)`. L'audit gira alla prima consegna
+   utile della settimana (qualunque ora), i run successivi si fermano se un
+   altro run ha già eseguito il passo `Audit modelli free` negli ultimi 6 giorni
+   (dedup via `gh api` su runs + jobs). `workflow_dispatch` non viene mai saltato.
+2. **Permesso `actions: read`** aggiunto ai `permissions` del workflow (serve al
+   dedup per leggere le esecuzioni precedenti).
+3. **`package-lock.json`** riallineato alla versione del progetto (era a 3.1.3
+   mentre `package.json` era a 3.2.0) e versione portata a **v3.2.1**.
+4. **Documentazione**: `CHANGELOG.md` e questo storico.
+
+### Prossimo controllo (lunedì 2026-11-23)
+- [ ] Arrivo del messaggio Telegram (a fine audit, quindi non alle 09:00 in punto:
+      la consegna del cron può slittare di ore).
+- [ ] `gh run list --repo supergino/ailegge --workflow weekly-models.yml --limit 5`:
+      un run con il passo `Audit modelli free` eseguito (`success`) e, se c'è un
+      secondo run lo stesso giorno, i suoi passi devono essere `skipped` (dedup).
+- [ ] Se il messaggio ancora non arriva: verificare `gh secret list` (i 3 secret
+      watchdog) e lanciare `gh workflow run weekly-models.yml -f apply=false`
+      per forzare un audit con notifica.
+
+---
+
 ## 2026-11-02 (pomeriggio) — Il test schedulato delle 10:00 non è partito
 
 ### Sintomo
