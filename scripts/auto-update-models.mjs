@@ -38,6 +38,19 @@ const LOCK_FILE = path.join(ROOT, 'package-lock.json')
 const PAGE_FILE = path.join(ROOT, 'app', 'page.js')
 const HISTORY_FILE = process.env.WATCHDOG_HISTORY_FILE || path.join(ROOT, 'data', 'model-changes.json')
 
+// File di documentazione tenuti fuori dal repository pubblico: se mancano (es.
+// checkout della CI, dove .gitignore li esclude) l'audit non deve fallire.
+const hasChangelog = () => fs.existsSync(CHANGELOG_FILE)
+// Elenco dei path realmente versionati: `git add`/`git checkout` su un file
+// ignorato e non tracciato fallirebbero.
+function tracked(paths) {
+  return paths.filter(
+    (p) =>
+      fs.existsSync(path.join(ROOT, p)) &&
+      execFileSync('git', ['ls-files', '--', p], { cwd: ROOT, encoding: 'utf8' }).trim().length > 0
+  )
+}
+
 const ARGS = new Set(process.argv.slice(2))
 const APPLY = ARGS.has('--apply')
 const COMMIT = ARGS.has('--commit') && APPLY
@@ -750,7 +763,7 @@ function applyPatches(patches) {
   }
 
   const version = bumpVersionAndChangelog(patches)
-  console.log(`Versione aggiornata a ${version}, CHANGELOG aggiornato.`)
+  console.log(`Versione aggiornata a ${version}${hasChangelog() ? ', CHANGELOG aggiornato' : ' (CHANGELOG.md non presente: solo versione)'}.`)
 }
 
 // Rilegge le export dal file scritto senza importarlo (l'import sarebbe in cache).
@@ -805,6 +818,11 @@ function bumpVersionAndChangelog(patches) {
     `- Versione aggiornata a v${version}`,
   ]
 
+  if (!hasChangelog()) {
+    console.log('[models] CHANGELOG.md assente (file locale, non versionato): aggiorno solo la versione.')
+    return version
+  }
+
   const changelog = fs.readFileSync(CHANGELOG_FILE, 'utf8')
   if (!changelog.startsWith('# Changelog')) throw new Error('CHANGELOG.md in formato inatteso')
 
@@ -853,7 +871,8 @@ function saveHistory(changes) {
 function rollback() {
   console.log('Rollback delle modifiche...')
   try {
-    execFileSync('git', ['checkout', '--', 'lib/ai-models.mjs', 'CHANGELOG.md', 'package.json', 'package-lock.json', 'app/page.js'], { cwd: ROOT, stdio: 'inherit' })
+    const files = tracked(['lib/ai-models.mjs', 'CHANGELOG.md', 'package.json', 'package-lock.json', 'app/page.js'])
+    execFileSync('git', ['checkout', '--', ...files], { cwd: ROOT, stdio: 'inherit' })
   } catch (e) {
     console.error('Rollback fallito:', e.message)
   }
@@ -865,7 +884,7 @@ function commitAndPush() {
   // quello della ref del workflow (main su schedule).
   const target = process.env.GITHUB_REF_NAME || branch
   const msg = `chore(models): aggiorna modelli free ritirati (${run.changes.map((c) => c.role).join(', ')})`
-  execFileSync('git', ['add', 'lib/ai-models.mjs', 'CHANGELOG.md', 'package.json', 'package-lock.json', 'app/page.js'], { cwd: ROOT, stdio: 'inherit' })
+  execFileSync('git', ['add', ...tracked(['lib/ai-models.mjs', 'CHANGELOG.md', 'package.json', 'package-lock.json', 'app/page.js'])], { cwd: ROOT, stdio: 'inherit' })
   execFileSync(
     'git',
     ['-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit', '-m', msg],
