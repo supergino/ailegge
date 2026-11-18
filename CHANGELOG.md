@@ -4,9 +4,13 @@
 
 ### Corretto
 - **Notifiche settimanali Telegram non più ricevute**: il passo `Verifica orario locale (09:00 Europe/Rome)` scartava ogni esecuzione schedulata perché GitHub Actions consegna i cron con 9-10 ore di ritardo (07:00/08:00 UTC arrivati alle 16:43-18:15 UTC del lunedì), quindi in `Europe/Rome` non erano mai le 09:00 e, dal 2 novembre, l'audit non è più stato eseguito (i run risultavano comunque verdi, con i passi 4-6 `skipped`).
-- **`weekly-models.yml`**: il guard è sostituito da `Guardia settimanale (dedup esecuzioni)`. L'audit gira alla prima consegna utile della settimana e i run successivi si fermano se un altro run ha già eseguito il passo `Audit modelli free` negli ultimi 6 giorni (dedup via API GitHub; aggiunto il permesso `actions: read`). Le esecuzioni manuali restano sempre attive.
-- **`package-lock.json`**: allineato a v3.2.0 (era rimasto a 3.1.3) e ora a v3.2.1.
-- Versione aggiornata a v3.2.1
+- **`weekly-models.yml`**: il guard è sostituito da `Guardia settimanale (dedup esecuzioni)`. L'audit gira alla prima consegna utile della settimana e i run successivi si fermano se un altro run della stessa settimana (da lunedì 00:00 `Europe/Rome`) ha già eseguito il passo `Audit modelli free` (dedup via API GitHub; aggiunto il permesso `actions: read`). Le esecuzioni manuali restano sempre attive.
+- **`package-lock.json`**: allineato a v3.2.0 (era rimasto a 3.1.3).
+- Versione aggiornata a v3.2.2
+
+### Sicurezza
+- **Next.js 16.4.3 → 16.4.6**: la 16.4.3 è affetta da un avviso di sicurezza pubblicato e `npm run build` si interrompeva con `SecurityFatalError`. Aggiornata alla patch mantenendo il range caret e aggiunto `experimental.agentUpgrade: 'security'` in `next.config.js`. Verificato: `next --version` → 16.4.6, `npm run build` completa con 11/11 pagine statiche.
+- Restano 10 vulnerabilità `high` nelle dipendenze di build (erano 11: quella di Next.js è risolta).
 
 ### Note
 - Il `.env.local` sul PC Windows non contiene `WATCHDOG_TELEGRAM_TOKEN` e `WATCHDOG_TELEGRAM_CHAT_ID`: un audit lanciato in locale non invia notifiche (i messaggi partono dai runner GitHub, dove i secret sono presenti).
