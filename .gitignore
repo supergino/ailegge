@@ -29,7 +29,6 @@ data/
 # Documentazione di sviluppo tenuta solo in locale (non pubblicata su GitHub)
 CHANGELOG.md
 CLAUDE.md
-OPERATIONS-HISTORY.md
 
 # Claude AI local settings
 .claude/
